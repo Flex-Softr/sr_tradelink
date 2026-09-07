@@ -3,12 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import {
-  RiArrowRightUpLine,
-  RiGlobalLine,
-  RiProductHuntLine,
-  RiUserStarLine,
-} from "@remixicon/react";
+import { RiArrowRightUpLine, RiGlobalLine, RiUserStarLine } from "@remixicon/react";
 import { getServerSession } from "next-auth";
 
 import LogoutButton from "@/components/dashboard/LogoutButton";
@@ -67,34 +62,22 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                মোট পণ্য (ক্যাটালগ)
-              </CardTitle>
-              <RiProductHuntLine className="size-5 text-green-600 dark:text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                {products.length} টি
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                স্ট্যাটিক ডাটা মডিউলে সংরক্ষিত
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Product Catalog Section */}
-        <div id="products" className="mt-8 scroll-mt-20">
+        <div id="products" className="scroll-mt-20">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-semibold text-slate-900 dark:text-white">
-                  পণ্যের তালিকা
-                </CardTitle>
+                <div className="flex items-center gap-2.5">
+                  <CardTitle className="text-lg font-semibold text-slate-900 dark:text-white">
+                    পণ্যের তালিকা
+                  </CardTitle>
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-50 text-xs font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-300"
+                  >
+                    মোট {products.length} টি পণ্য
+                  </Badge>
+                </div>
                 <CardDescription>ওয়েবসাইটে প্রদর্শিত বর্তমান পণ্যসমূহের তালিকা</CardDescription>
               </div>
               <Link
