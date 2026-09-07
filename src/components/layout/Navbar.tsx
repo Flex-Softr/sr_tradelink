@@ -5,16 +5,19 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-const navLinks = [
-  { href: "/", label: "হোম" },
-  { href: "/#products", label: "পণ্যসমূহ" },
-  { href: "/#about", label: "আমাদের সম্পর্কে" },
-  { href: "/#contact", label: "যোগাযোগ" },
-  { href: "/login", label: "লগইন" },
-];
+import { useSession } from "next-auth/react";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: session } = useSession();
+
+  const links = [
+    { href: "/", label: "হোম" },
+    { href: "/#products", label: "পণ্যসমূহ" },
+    { href: "/#about", label: "আমাদের সম্পর্কে" },
+    { href: "/#contact", label: "যোগাযোগ" },
+    session ? { href: "/dashboard", label: "ড্যাশবোর্ড" } : { href: "/login", label: "লগইন" },
+  ];
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-white/80 shadow-sm backdrop-blur-md">
@@ -36,7 +39,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-8 lg:flex">
-            {navLinks.map((link) => (
+            {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -76,7 +79,7 @@ export default function Navbar() {
         {mobileMenuOpen && (
           <div className="border-t border-gray-100 py-4 lg:hidden">
             <div className="flex flex-col gap-4">
-              {navLinks.map((link) => (
+              {links.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

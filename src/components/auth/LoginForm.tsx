@@ -26,7 +26,8 @@ import { Label } from "@/components/ui/label";
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = searchParams.get("callbackUrl");
+  const targetUrl = callbackUrl && callbackUrl !== "/" ? callbackUrl : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,14 +45,14 @@ export default function LoginForm() {
         email: email.trim(),
         password,
         redirect: false,
-        callbackUrl,
+        callbackUrl: targetUrl,
       });
 
       if (res?.error) {
         setError(res.error || "ভুল ইমেইল অথবা পাসওয়ার্ড। আবার চেষ্টা করুন।");
         setIsLoading(false);
       } else if (res?.ok) {
-        router.push(callbackUrl);
+        router.push(targetUrl);
         router.refresh();
       }
     } catch {
