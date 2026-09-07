@@ -61,11 +61,12 @@ export default function Hero() {
 
             {/* Logo */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-40 w-40 -rotate-3 overflow-hidden rounded-2xl shadow-xl transition-transform duration-500 hover:rotate-0 sm:h-56 sm:w-56 md:h-64 md:w-64">
+              <div className="relative h-40 w-40 -rotate-3 overflow-hidden rounded-2xl shadow-xl transition-transform duration-500 hover:rotate-0 sm:h-56 sm:w-56 md:h-64 md:w-64">
                 <Image
                   src="/images/n-r.jpg"
                   alt="SR Logo"
                   fill
+                  sizes="(max-width: 640px) 160px, (max-width: 768px) 224px, 256px"
                   className="object-cover"
                   style={{ objectPosition: "center 30%" }}
                 />

@@ -26,6 +26,7 @@ export default function Navbar() {
                 src="/images/sr-logo.jpeg"
                 alt="SR Tradelinek Logo"
                 fill
+                sizes="40px"
                 className="object-cover"
               />
             </div>

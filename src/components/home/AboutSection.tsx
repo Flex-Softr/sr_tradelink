@@ -17,6 +17,7 @@ export default function AboutSection() {
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
               alt="About SR Tradelinek"
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
             />
           </div>
