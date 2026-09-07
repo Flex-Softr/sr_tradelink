@@ -5,11 +5,8 @@ import { redirect } from "next/navigation";
 
 import {
   RiArrowRightUpLine,
-  RiCheckDoubleLine,
-  RiDatabase2Line,
   RiGlobalLine,
   RiProductHuntLine,
-  RiShieldCheckLine,
   RiUserStarLine,
 } from "@remixicon/react";
 import { getServerSession } from "next-auth";
@@ -85,56 +82,6 @@ export default async function DashboardPage() {
               </div>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 স্ট্যাটিক ডাটা মডিউলে সংরক্ষিত
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                অ্যাডমিন রোল
-              </CardTitle>
-              <RiShieldCheckLine className="size-5 text-blue-600 dark:text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                {user?.role === "ADMIN" ? "Super Admin" : user?.role || "ADMIN"}
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                পূর্ণ সিস্টেম নিয়ন্ত্রণের ক্ষমতা
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                ডাটাবেস সংযোগ
-              </CardTitle>
-              <RiDatabase2Line className="size-5 text-purple-600 dark:text-purple-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white">
-                MongoDB
-                <span className="inline-flex size-2 rounded-full bg-green-500" />
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Prisma ORM এর মাধ্যমে সংযুক্ত
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                নিরাপত্তা এনক্রিপশন
-              </CardTitle>
-              <RiCheckDoubleLine className="size-5 text-emerald-600 dark:text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">Argon2id</div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                NextAuth JWT সেশন সুরক্ষিত
               </p>
             </CardContent>
           </Card>
