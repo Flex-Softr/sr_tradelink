@@ -1,5 +1,11 @@
 import Image from "next/image";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-gray-900 pt-20 pb-10 text-gray-300">
@@ -62,14 +68,12 @@ export default function Footer() {
             </p>
 
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="email"
                 placeholder="আপনার ইমেল লিখুন"
-                className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white backdrop-blur-md outline-none placeholder:text-gray-300"
+                className="border-white/20 bg-white/10 text-white backdrop-blur-md placeholder:text-gray-300"
               />
-              <button className="rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700">
-                যোগদান করুন
-              </button>
+              <Button className="bg-green-600 hover:bg-green-700">যোগদান করুন</Button>
             </div>
           </div>
         </div>

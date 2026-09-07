@@ -1,10 +1,10 @@
-import AboutUs from "@/components/home/AboutUs";
+import AboutSection from "@/components/home/AboutSection";
 import Choose from "@/components/home/Choose";
 import Contact from "@/components/home/Contact";
 import Hero from "@/components/home/Hero";
 import ProductsGrid from "@/components/home/ProductsGrid";
 
-import AboutUs from "@/components/home/AboutUs";
+import AboutSection from "@/components/home/AboutSection";
 import Choose from "@/components/home/Choose";
 import Contact from "@/components/home/Contact";
 import Hero from "@/components/home/Hero";
@@ -16,7 +16,7 @@ export default function Home() {
       <Hero />
       <Choose />
       <ProductsGrid />
-      <AboutUs />
+      <AboutSection />
       <Contact />
     </>
   );

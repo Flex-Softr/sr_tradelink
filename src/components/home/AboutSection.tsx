@@ -1,6 +1,12 @@
 import Image from "next/image";
 
-export default function AboutUs() {
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function AboutSection() {
   return (
     <section id="about" className="relative overflow-hidden bg-gray-50 py-20">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 opacity-30 blur-3xl" />
@@ -40,22 +46,23 @@ export default function AboutUs() {
           </p>
 
           <div className="grid grid-cols-2 gap-6 pt-4">
-            <div className="rounded-2xl bg-white p-5 shadow-lg transition duration-300 hover:shadow-xl">
-              <h3 className="text-3xl font-bold text-green-600">২+</h3>
-              <p className="text-gray-700">বছরের অভিজ্ঞতা</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-lg transition duration-300 hover:shadow-xl">
-              <h3 className="text-3xl font-bold text-green-600">১৫০+</h3>
-              <p className="text-gray-700">খুশি ক্লায়েন্ট</p>
-            </div>
+            <Card className="shadow-lg transition duration-300 hover:shadow-xl">
+              <CardContent className="p-5">
+                <h3 className="text-primary text-3xl font-bold">২+</h3>
+                <p className="text-muted-foreground">বছরের অভিজ্ঞতা</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-lg transition duration-300 hover:shadow-xl">
+              <CardContent className="p-5">
+                <h3 className="text-primary text-3xl font-bold">১৫০+</h3>
+                <p className="text-muted-foreground">খুশি ক্লায়েন্ট</p>
+              </CardContent>
+            </Card>
           </div>
 
-          <a
-            href="#contact"
-            className="mt-4 inline-block rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
-          >
-            আরও জানুন
-          </a>
+          <Button size="lg" className="mt-4 bg-gradient-to-r from-emerald-600 to-green-600">
+            <a href="#contact">আরও জানুন</a>
+          </Button>
         </div>
       </div>
     </section>

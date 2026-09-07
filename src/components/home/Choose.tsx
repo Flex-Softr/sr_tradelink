@@ -1,3 +1,9 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+
 const features = [
   {
     icon: "🥛",
@@ -38,13 +44,13 @@ export default function Choose() {
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-16 text-center">
-          <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-800">
+          <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-semibold">
             কেনো বাছাই করবেন
-          </span>
-          <h2 className="mt-6 text-4xl font-bold text-gray-900 lg:text-5xl">
+          </Badge>
+          <h2 className="text-foreground mt-6 text-4xl font-bold lg:text-5xl">
             নির্ভরযোগ্য গবাদি পশুর খাদ্য যা আপনি নির্ভর করতে পারেন
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+          <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-lg">
             এসআর ট্রেডলিংক উচ্চমানের খাদ্য নিশ্চিত করে যা গবাদি পশুর বৃদ্ধি বৃদ্ধি করে, দুধ উৎপাদন
             উন্নত করে এবং আপনার গবাদি পশুকে সুস্থ রাখে—স্বাভাবিকভাবেই।
           </p>
@@ -52,16 +58,18 @@ export default function Choose() {
 
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
-            <div
+            <Card
               key={index}
-              className="rounded-3xl border border-gray-100 bg-white p-8 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+              className="transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-green-100 text-3xl">
-                {feature.icon}
-              </div>
-              <h3 className="mb-3 text-2xl font-semibold text-gray-900">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </div>
+              <CardContent className="p-8">
+                <div className="bg-primary/10 mb-5 flex h-14 w-14 items-center justify-center rounded-xl text-3xl">
+                  {feature.icon}
+                </div>
+                <CardTitle className="mb-3 text-2xl">{feature.title}</CardTitle>
+                <CardDescription className="text-base">{feature.description}</CardDescription>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>

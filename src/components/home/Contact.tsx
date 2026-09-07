@@ -1,14 +1,22 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+
 export default function Contact() {
   return (
-    <section id="contact" className="bg-gray-50 py-24">
+    <section id="contact" className="bg-muted/30 py-24">
       <div className="mx-auto max-w-7xl px-4">
         {/* Header */}
         <div className="mb-14 text-center">
-          <span className="rounded-full bg-green-100 px-5 py-3 text-sm font-semibold text-black">
+          <Badge variant="secondary" className="mb-4 px-5 py-3 text-sm font-semibold">
             যোগাযোগ করুন
-          </span>
-          <h2 className="mt-6 text-4xl font-bold text-black">এসআর ট্রেডলিংকের সাথে যোগাযোগ করুন</h2>
-          <p className="mx-auto mt-3 max-w-xl text-lg text-gray-600">
+          </Badge>
+          <h2 className="text-foreground mt-6 text-4xl font-bold">
+            এসআর ট্রেডলিংকের সাথে যোগাযোগ করুন
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-lg">
             অর্ডারের ক্ষেত্রে আপনাকে সাহায্য করার জন্য আমরা সর্বদা এখানে আছি।
           </p>
         </div>
@@ -16,38 +24,39 @@ export default function Contact() {
         {/* Content */}
         <div className="grid gap-12 lg:grid-cols-2">
           {/* Contact Info */}
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
-            <h3 className="mb-6 text-2xl font-bold text-black">যোগাযোগের তথ্য</h3>
+          <Card className="p-8 shadow-xl">
+            <CardTitle className="mb-6 text-2xl">যোগাযোগের তথ্য</CardTitle>
+            <CardContent className="p-0">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">📞</span>
+                  <p className="text-primary text-lg">+88 01826147180</p>
+                </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-3xl text-green-600">📞</span>
-                <p className="text-lg text-green-600">+88 01826147180</p>
-              </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">✉️</span>
+                  <p className="text-primary text-lg">noornabikhan100@gmail.com</p>
+                </div>
 
-              <div className="flex items-center gap-4">
-                <span className="text-3xl text-green-600">✉️</span>
-                <p className="text-lg text-green-600">noornabikhan100@gmail.com</p>
-              </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">📍</span>
+                  <p className="text-primary text-lg">ঝাড়বাড়ী, বীরগঞ্জ, দিনাজপুর</p>
+                </div>
 
-              <div className="flex items-center gap-4">
-                <span className="text-3xl text-green-600">📍</span>
-                <p className="text-lg text-green-600">ঝাড়বাড়ী, বীরগঞ্জ, দিনাজপুর</p>
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">🕒</span>
+                  <p className="text-primary text-lg">সকাল ৯:০০ - রাত ৯:০০</p>
+                </div>
               </div>
-
-              <div className="flex items-center gap-4">
-                <span className="text-3xl text-green-600">🕒</span>
-                <p className="text-lg text-green-600">সকাল ৯:০০ - রাত ৯:০০</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Google Map */}
           <div className="relative flex justify-center">
             <div className="absolute inset-0 rounded-[40px] border border-white/20 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl" />
 
             <div className="relative w-full max-w-6xl p-6">
-              <h3 className="mb-8 text-center text-3xl font-bold text-gray-900 drop-shadow-sm">
+              <h3 className="text-foreground mb-8 text-center text-3xl font-bold drop-shadow-sm">
                 গুগল ম্যাপে আমাদের খুঁজুন
               </h3>
 
