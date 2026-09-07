@@ -3,9 +3,6 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
 export default function Hero() {
   return (
     <section id="home" className="relative flex min-h-[90vh] items-center overflow-hidden pt-16">

@@ -1,9 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-
 export default function Contact() {
   return (
     <section id="contact" className="bg-muted/30 py-24">

@@ -10,12 +10,6 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Input } from "@/components/ui/input";
 import { Product, products } from "@/data/products";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Product, products } from "@/data/products";
-
 const ITEMS_PER_PAGE = 6;
 
 function ProductCard({ product }: { product: Product }) {

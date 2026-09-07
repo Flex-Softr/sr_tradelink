@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 import { DM_Sans, Geist, Geist_Mono, Inter } from "next/font/google";
 
-import "./globals.css";
 import BackToTop from "@/components/home/BackToTop";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
-import BackToTop from "@/components/home/BackToTop";
-import Footer from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
-import { cn } from "@/lib/utils";
 
 const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" });
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" });
