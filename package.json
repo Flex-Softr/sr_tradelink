@@ -11,7 +11,9 @@
     "format:check": "prettier --check .",
     "prepare": "husky",
     "postinstall": "prisma skills sync || exit 0",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "docker:build": "docker build -t sr_tradelink:latest .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env sr_tradelink:latest"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx,cjs}": [
