@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist, Geist_Mono, Inter } from "next/font/google";
 
 import "./globals.css";
+import BackToTop from "@/components/home/BackToTop";
+import Footer from "@/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
+import BackToTop from "@/components/home/BackToTop";
+import Footer from "@/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
 import { cn } from "@/lib/utils";
 
 const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" });
-
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
@@ -22,14 +27,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SR Tradelink",
-  description: "SR Tradelink web application",
+  title: "এসআর ট্রেডলিংক | SR Tradelink",
+  description:
+    "প্রিমিয়াম গবাদি পশুর খাদ্য, সাইলেজ, শস্য এবং খামারের পুষ্টি সরবরাহে আপনার বিশ্বস্ত অংশীদার",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="bn"
       className={cn(
         "h-full",
         "antialiased",
@@ -40,7 +46,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         interHeading.variable
       )}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <BackToTop />
+      </body>
     </html>
   );
 }
