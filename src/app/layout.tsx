@@ -4,6 +4,7 @@ import { DM_Sans, Geist, Geist_Mono, Inter } from "next/font/google";
 import BackToTop from "@/components/home/BackToTop";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
+import AuthProvider from "@/components/providers/AuthProvider";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -42,10 +43,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       )}
     >
       <body className="flex min-h-full flex-col">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <BackToTop />
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <BackToTop />
+        </AuthProvider>
       </body>
     </html>
   );

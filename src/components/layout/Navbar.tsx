@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/#products", label: "পণ্যসমূহ" },
   { href: "/#about", label: "আমাদের সম্পর্কে" },
   { href: "/#contact", label: "যোগাযোগ" },
+  { href: "/login", label: "লগইন" },
 ];
 
 export default function Navbar() {
