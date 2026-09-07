@@ -35,7 +35,7 @@ export default async function DashboardPage() {
   const user = session.user;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pt-24 pb-16 dark:bg-slate-950">
+    <div className="py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Welcome Header */}
         <div className="mb-8 flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center dark:border-slate-800">
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Product Catalog Section */}
-        <div className="mt-8">
+        <div id="products" className="mt-8 scroll-mt-20">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>

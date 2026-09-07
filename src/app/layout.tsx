@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Geist, Geist_Mono, Inter } from "next/font/google";
 
-import BackToTop from "@/components/home/BackToTop";
-import Footer from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +25,7 @@ export const metadata: Metadata = {
     "প্রিমিয়াম গবাদি পশুর খাদ্য, সাইলেজ, শস্য এবং খামারের পুষ্টি সরবরাহে আপনার বিশ্বস্ত অংশীদার",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="bn"
@@ -42,13 +39,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         interHeading.variable
       )}
     >
-      <body className="flex min-h-full flex-col">
-        <AuthProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <BackToTop />
-        </AuthProvider>
+      <body className="min-h-full">
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
