@@ -13,7 +13,7 @@
     "postinstall": "prisma skills sync || exit 0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,cjs}": [
+    "src/**/*.{js,jsx,ts,tsx,cjs}": [
       "eslint --fix",
       "prettier --write"
     ],
