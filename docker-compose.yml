@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
     image: sr_tradelink:latest
     container_name: sr_tradelink_app
     restart: unless-stopped

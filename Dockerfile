@@ -14,6 +14,9 @@ RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
 COPY prisma ./prisma/
 
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+
 RUN pnpm approve-builds --all && pnpm install --frozen-lockfile
 RUN pnpm prisma generate
 
@@ -31,7 +34,8 @@ COPY . .
 
 # Next.js telemetry disable
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="mongodb://localhost:27017/dummy"
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
 
 RUN pnpm build
 
