@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "postinstall": "prisma skills sync || exit 0"
+    "postinstall": "prisma skills sync || exit 0",
+    "db:seed": "prisma db seed"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx,cjs}": [
@@ -28,9 +29,11 @@
     "@base-ui/react": "^1.8.0",
     "@prisma/client": "^6.19.3",
     "@remixicon/react": "^4.9.0",
+    "argon2": "^0.45.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.5",
     "next": "16.3.4",
+    "next-auth": "^4.24.15",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "shadcn": "^4.21.0",
@@ -50,7 +53,12 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@11.25.0",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
 }

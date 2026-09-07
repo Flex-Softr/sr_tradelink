@@ -1,0 +1,1 @@
+docker build -t sr_tradelink:latest .
