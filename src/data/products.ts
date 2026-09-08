@@ -1,4 +1,23 @@
+export type ProductUnit = "KG" | "G";
+
+/**
+ * Product definition matching Prisma Product model
+ */
 export interface Product {
+  id: string;
+  name: string;
+  subtitle?: string | null;
+  stock?: number | null;
+  price?: number | null;
+  description?: string | null;
+  image?: string | null;
+  badge?: string | null;
+  unit?: ProductUnit | null;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+}
+
+export interface LegacyProduct {
   id: string;
   name: string;
   subtitle: string;
@@ -7,7 +26,7 @@ export interface Product {
   badge: string;
 }
 
-export const products: Product[] = [
+const rawLegacyProducts: LegacyProduct[] = [
   {
     id: "6a8547a7e362a9ce30f6a881",
     name: "Sorisa Khoil",
@@ -225,3 +244,20 @@ export const products: Product[] = [
     badge: "Hot",
   },
 ];
+
+export { rawLegacyProducts };
+
+/**
+ * @deprecated Legacy static product list with updated schema compatibility.
+ */
+export const products: Product[] = rawLegacyProducts.map((p) => ({
+  id: p.id,
+  name: p.name,
+  subtitle: p.subtitle,
+  stock: 50,
+  price: parseFloat(p.price.replace(/[^0-9.]/g, "")) || 0,
+  description: `${p.name} - ${p.subtitle}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
+  image: p.image,
+  badge: p.badge,
+  unit: "KG",
+}));

@@ -3,13 +3,16 @@ import Choose from "@/components/home/Choose";
 import Contact from "@/components/home/Contact";
 import Hero from "@/components/home/Hero";
 import ProductsGrid from "@/components/home/ProductsGrid";
+import { getProducts } from "@/lib/products";
 
-export default function Home() {
+export default async function Home() {
+  const products = await getProducts();
+
   return (
     <>
       <Hero />
       <Choose />
-      <ProductsGrid />
+      <ProductsGrid initialProducts={products} />
       <AboutSection />
       <Contact />
     </>
