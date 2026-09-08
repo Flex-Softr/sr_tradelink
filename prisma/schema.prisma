@@ -19,3 +19,69 @@ model User {
 
   @@map("users")
 }
+
+enum ProductUnit {
+  KG
+  G
+}
+
+model Product {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  subtitle    String?
+  stock       Float?       @default(0.0)
+  price       Float?       @default(0.0)
+  description String?
+  image       String?
+  badge       String?      @default("")
+  unit        ProductUnit? @default(KG)
+  created_at  DateTime     @default(now()) @map("created_at")
+  updated_at  DateTime     @updatedAt @map("updated_at")
+
+  @@map("products")
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+  BOTH
+}
+
+model Customer {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String?       @unique
+  phone        String?       @unique
+  address      String?
+  is_vip       Boolean       @default(false)
+  type         CustomerType  @default(RETAIL)
+  transactions Transaction[]
+  created_at   DateTime      @default(now()) @map("created_at")
+  updated_at   DateTime      @updatedAt @map("updated_at")
+
+  @@map("customers")
+}
+
+enum TransactionType {
+  SALE
+  PAYMENT
+  DUE
+}
+
+model Transaction {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  customer_id String          @db.ObjectId @map("customer_id")
+  customer    Customer        @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  type        TransactionType @default(SALE)
+  amount      Float           @default(0.0)
+  paid_amount Float           @default(0.0) @map("paid_amount")
+  due_amount  Float           @default(0.0) @map("due_amount")
+  description String?
+  reference   String?
+  date        DateTime        @default(now())
+  created_at  DateTime        @default(now()) @map("created_at")
+  updated_at  DateTime        @updatedAt @map("updated_at")
+
+  @@index([customer_id])
+  @@map("transactions")
+}
