@@ -10,8 +10,10 @@ import {
   RiArrowRightUpLine,
   RiCloseLine,
   RiDashboardLine,
+  RiGroupLine,
   RiMenuLine,
   RiProductHuntLine,
+  RiShieldUserLine,
 } from "@remixicon/react";
 
 import LogoutButton from "@/components/dashboard/LogoutButton";
@@ -40,10 +42,22 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
       active: pathname === "/dashboard",
     },
     {
-      href: "/dashboard#products",
+      href: "/dashboard/products",
       label: "পণ্য তালিকা",
       icon: RiProductHuntLine,
-      active: false,
+      active: pathname.startsWith("/dashboard/products"),
+    },
+    {
+      href: "/dashboard/customers",
+      label: "গ্রাহক তালিকা",
+      icon: RiGroupLine,
+      active: pathname.startsWith("/dashboard/customers"),
+    },
+    {
+      href: "/dashboard/users",
+      label: "ব্যবহারকারী",
+      icon: RiShieldUserLine,
+      active: pathname.startsWith("/dashboard/users"),
     },
   ];
 

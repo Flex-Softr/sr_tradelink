@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { RiArrowRightUpLine, RiGlobalLine, RiUserStarLine } from "@remixicon/react";
+import { RiGlobalLine, RiUserStarLine } from "@remixicon/react";
 import { getServerSession } from "next-auth";
 
+import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import LogoutButton from "@/components/dashboard/LogoutButton";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { products } from "@/data/products";
 import { authOptions } from "@/lib/auth";
+import { getCustomers } from "@/lib/customers";
+import { getProducts } from "@/lib/products";
+import { getUsers } from "@/lib/users";
 
 export const metadata: Metadata = {
   title: "ড্যাশবোর্ড | SR Tradelink Admin",
@@ -25,6 +26,11 @@ export default async function DashboardPage() {
   }
 
   const user = session.user;
+  const [initialProducts, initialCustomers, usersResult] = await Promise.all([
+    getProducts(),
+    getCustomers(),
+    getUsers({ limit: 1000 }),
+  ]);
 
   return (
     <div className="py-8">
@@ -62,88 +68,12 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Product Catalog Section */}
-        <div id="products" className="scroll-mt-20">
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <CardTitle className="text-lg font-semibold text-slate-900 dark:text-white">
-                    পণ্যের তালিকা
-                  </CardTitle>
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-50 text-xs font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-300"
-                  >
-                    মোট {products.length} টি পণ্য
-                  </Badge>
-                </div>
-                <CardDescription>ওয়েবসাইটে প্রদর্শিত বর্তমান পণ্যসমূহের তালিকা</CardDescription>
-              </div>
-              <Link
-                href="/#products"
-                className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800 dark:text-green-400"
-              >
-                সাইটে দেখুন <RiArrowRightUpLine className="size-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                  <thead className="bg-slate-100/75 text-xs text-slate-700 uppercase dark:bg-slate-900 dark:text-slate-400">
-                    <tr>
-                      <th scope="col" className="px-4 py-3">
-                        ছবি ও নাম
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        বিবরণ
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        প্যাকেজিং / ওজন
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        ব্যাজ
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {products.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="relative size-10 flex-shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-800">
-                              <Image
-                                src={item.image}
-                                alt={item.name}
-                                fill
-                                sizes="40px"
-                                className="object-cover"
-                              />
-                            </div>
-                            <span className="font-medium text-slate-900 dark:text-white">
-                              {item.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                          {item.subtitle}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
-                          {item.price}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="secondary" className="text-xs">
-                            {item.badge}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Dynamic Products, Customers & Users Management */}
+        <DashboardTabs
+          initialProducts={initialProducts}
+          initialCustomers={initialCustomers}
+          initialUsers={usersResult.users}
+        />
       </div>
     </div>
   );
