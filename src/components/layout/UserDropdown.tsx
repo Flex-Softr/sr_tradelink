@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import {
-  RiArrowDownSLine,
   RiArrowRightUpLine,
   RiDashboardLine,
   RiLogoutBoxRLine,
   RiShieldUserLine,
+  RiUser3Line,
 } from "@remixicon/react";
 import { signOut } from "next-auth/react";
 
@@ -62,43 +62,21 @@ export default function UserDropdown({ user }: UserDropdownProps) {
 
   return (
     <div className="relative shrink-0" ref={dropdownRef}>
-      {/* Trigger Button */}
+      {/* Trigger Button - Compact Rounded Dummy User Icon */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
+        aria-label="ব্যবহারকারী মেনু"
+        title={userName}
         className={cn(
-          "inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1 pr-3 pl-1.5 text-left transition-all hover:border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-green-500/20 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600 dark:hover:bg-slate-700",
-          isOpen && "border-green-600 ring-2 ring-green-600/20 dark:border-green-500"
+          "relative flex size-9.5 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs transition-all hover:border-green-600/40 hover:bg-green-50/60 hover:text-green-700 focus:ring-2 focus:ring-green-500/20 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-green-500/40 dark:hover:bg-slate-700 dark:hover:text-green-400",
+          isOpen &&
+            "border-green-600 bg-green-50 text-green-700 ring-2 ring-green-600/20 dark:border-green-500 dark:bg-slate-700 dark:text-green-400"
         )}
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
-        <Avatar size="sm" className="ring-1 ring-green-600/30">
-          <AvatarFallback className="bg-green-100 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
-            {userInitial}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="flex flex-col text-left">
-          <div className="flex items-center gap-1.5">
-            <span className="max-w-[120px] truncate text-xs font-semibold whitespace-nowrap text-slate-900 dark:text-white">
-              {userName}
-            </span>
-            <Badge
-              variant="secondary"
-              className="bg-green-50 px-1 py-0 text-[10px] whitespace-nowrap text-green-700 uppercase dark:bg-green-950/60 dark:text-green-400"
-            >
-              {userRole}
-            </Badge>
-          </div>
-        </div>
-
-        <RiArrowDownSLine
-          className={cn(
-            "size-4 text-slate-400 transition-transform duration-200 dark:text-slate-500",
-            isOpen && "rotate-180 text-slate-600 dark:text-slate-300"
-          )}
-        />
+        <RiUser3Line className="size-5" />
       </button>
 
       {/* Dropdown Menu Popup */}
@@ -107,7 +85,7 @@ export default function UserDropdown({ user }: UserDropdownProps) {
           role="menu"
           className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-all duration-150 ease-out focus:outline-hidden dark:border-slate-800 dark:bg-slate-900"
         >
-          {/* User Profile Header */}
+          {/* User Profile Header inside Dropdown */}
           <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-3 dark:border-slate-800">
             <Avatar size="default" className="ring-2 ring-green-600/20">
               <AvatarFallback className="bg-green-100 font-bold text-green-800 dark:bg-green-950 dark:text-green-300">
