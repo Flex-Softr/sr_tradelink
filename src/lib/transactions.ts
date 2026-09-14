@@ -1,4 +1,4 @@
-import { PrismaClient, TransactionType } from "@prisma/client";
+import { CustomerType, Prisma, PrismaClient, TransactionType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -53,6 +53,84 @@ export interface CustomerTransactionSummary {
   totalPaid: number;
   totalDue: number;
   transactionCount: number;
+}
+
+export interface TransactionCustomerInfo {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  type?: string | null;
+  is_vip?: boolean;
+}
+
+export interface TransactionWithCustomer extends Transaction {
+  customer?: TransactionCustomerInfo | null;
+}
+
+export interface CentralSalesReportMetrics {
+  totalSales: number;
+  totalCollected: number;
+  totalDue: number;
+  netTurnover: number;
+  collectionRate: number;
+  totalTransactions: number;
+  saleCount: number;
+  paymentCount: number;
+  dueCount: number;
+  avgSaleAmount: number;
+}
+
+export interface DailySalesTrend {
+  date: string;
+  displayDate: string;
+  sales: number;
+  collected: number;
+  due: number;
+  txCount: number;
+}
+
+export interface CustomerSalesSummary {
+  customerId: string;
+  customerName: string;
+  phone?: string | null;
+  customerType?: string | null;
+  isVip?: boolean;
+  totalSales: number;
+  totalPaid: number;
+  totalDue: number;
+  txCount: number;
+}
+
+export interface GetCentralSalesReportOptions {
+  startDate?: string;
+  endDate?: string;
+  type?: TransactionType | "all";
+  customerType?: string | "all";
+  customerId?: string | "all";
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CentralSalesReportResult {
+  metrics: CentralSalesReportMetrics;
+  transactions: TransactionWithCustomer[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  limit: number;
+  dailyTrend: DailySalesTrend[];
+  topCustomersBySales: CustomerSalesSummary[];
+  topCustomersByDue: CustomerSalesSummary[];
+  customerTypeBreakdown: {
+    retailSales: number;
+    wholesaleSales: number;
+    bothSales: number;
+    retailCount: number;
+    wholesaleCount: number;
+  };
 }
 
 /**
@@ -111,7 +189,7 @@ export async function getTransactionsByCustomerId(
     const txModel = getTxModel();
     if (!txModel) {
       console.warn(
-        "⚠️ [Prisma] 'transaction' model is not yet loaded in the running process. Please restart your dev server ('pnpm dev') to apply new schema."
+        "⚠️ [Prisma] 'transaction' model is not yet loaded in the running process. Please restart your dev server ('npm run dev') to apply new schema."
       );
       return {
         transactions: [],
@@ -299,7 +377,7 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   const txModel = getTxModel();
   if (!txModel) {
     throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('pnpm dev')।"
+      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
     );
   }
   const record = await txModel.create({
@@ -340,7 +418,7 @@ export async function updateTransaction(
   const txModel = getTxModel();
   if (!txModel) {
     throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('pnpm dev')।"
+      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
     );
   }
   const existing = await txModel.findUnique({ where: { id } });
@@ -413,7 +491,7 @@ export async function deleteTransaction(id: string): Promise<boolean> {
   const txModel = getTxModel();
   if (!txModel) {
     throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('pnpm dev')।"
+      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
     );
   }
   const existing = await txModel.findUnique({ where: { id } });
@@ -423,4 +501,380 @@ export async function deleteTransaction(id: string): Promise<boolean> {
 
   await txModel.delete({ where: { id } });
   return true;
+}
+
+/**
+ * Fetch and calculate central sales report data across all company transactions.
+ */
+export async function getCentralSalesReportData(
+  options: GetCentralSalesReportOptions = {}
+): Promise<CentralSalesReportResult> {
+  try {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.max(1, options.limit || 25);
+    const txModel = getTxModel();
+
+    if (!txModel) {
+      return {
+        metrics: {
+          totalSales: 0,
+          totalCollected: 0,
+          totalDue: 0,
+          netTurnover: 0,
+          collectionRate: 0,
+          totalTransactions: 0,
+          saleCount: 0,
+          paymentCount: 0,
+          dueCount: 0,
+          avgSaleAmount: 0,
+        },
+        transactions: [],
+        total: 0,
+        totalPages: 1,
+        currentPage: page,
+        limit,
+        dailyTrend: [],
+        topCustomersBySales: [],
+        topCustomersByDue: [],
+        customerTypeBreakdown: {
+          retailSales: 0,
+          wholesaleSales: 0,
+          bothSales: 0,
+          retailCount: 0,
+          wholesaleCount: 0,
+        },
+      };
+    }
+
+    // 1. Build where conditions
+    const andConditions: Prisma.TransactionWhereInput[] = [];
+
+    // Date range
+    if (options.startDate && options.endDate) {
+      const start = new Date(options.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(options.endDate);
+      end.setHours(23, 59, 59, 999);
+      andConditions.push({ date: { gte: start, lte: end } });
+    } else if (options.startDate) {
+      const start = new Date(options.startDate);
+      start.setHours(0, 0, 0, 0);
+      andConditions.push({ date: { gte: start } });
+    } else if (options.endDate) {
+      const end = new Date(options.endDate);
+      end.setHours(23, 59, 59, 999);
+      andConditions.push({ date: { lte: end } });
+    }
+
+    // Type filter
+    if (options.type && options.type !== "all") {
+      andConditions.push({ type: { equals: options.type } });
+    }
+
+    // Customer ID filter
+    if (options.customerId && options.customerId !== "all") {
+      andConditions.push({ customer_id: { equals: options.customerId } });
+    }
+
+    // Customer Type filter
+    if (options.customerType && options.customerType !== "all") {
+      const customersOfType = await prisma.customer.findMany({
+        where: { type: options.customerType as CustomerType },
+        select: { id: true },
+      });
+      const ids = customersOfType.map((c) => c.id);
+      andConditions.push({ customer_id: { in: ids } });
+    }
+
+    // Search filter across reference, description, customer name, customer phone
+    if (options.search?.trim()) {
+      const term = options.search.trim();
+      const matchedCustomers = await prisma.customer.findMany({
+        where: {
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { phone: { contains: term, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+      const matchedCustIds = matchedCustomers.map((c) => c.id);
+
+      andConditions.push({
+        OR: [
+          { description: { contains: term, mode: "insensitive" } },
+          { reference: { contains: term, mode: "insensitive" } },
+          ...(matchedCustIds.length > 0 ? [{ customer_id: { in: matchedCustIds } }] : []),
+        ],
+      });
+    }
+
+    const whereClause: Prisma.TransactionWhereInput =
+      andConditions.length > 0 ? { AND: andConditions } : {};
+
+    // Fetch all records matching the filters for metrics and aggregation
+    const allRecords = await txModel.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            address: true,
+            type: true,
+            is_vip: true,
+          },
+        },
+      },
+      orderBy: [{ date: "desc" }, { created_at: "desc" }],
+    });
+
+    // 2. Compute company sales metrics
+    let totalSales = 0;
+    let totalCollected = 0;
+    let totalDue = 0;
+    let saleCount = 0;
+    let paymentCount = 0;
+    let dueCount = 0;
+
+    // Daily map: date string (YYYY-MM-DD) -> metrics
+    const dailyMap = new Map<
+      string,
+      { sales: number; collected: number; due: number; txCount: number; dateObj: Date }
+    >();
+
+    // Customer map: customerId -> sales summary
+    const customerMap = new Map<string, CustomerSalesSummary>();
+
+    // Customer type breakdown
+    let retailSales = 0;
+    let wholesaleSales = 0;
+    let bothSales = 0;
+    let retailCount = 0;
+    let wholesaleCount = 0;
+
+    for (const r of allRecords) {
+      const amount = Number(r.amount) || 0;
+      const paid = Number(r.paid_amount) || 0;
+      const due = Number(r.due_amount) || 0;
+
+      let itemSale = 0;
+      let itemCollected = 0;
+      let itemDue = 0;
+
+      if (r.type === "SALE") {
+        saleCount++;
+        itemSale = amount;
+        itemCollected = paid;
+        itemDue = due > 0 ? due : Math.max(0, amount - paid);
+      } else if (r.type === "PAYMENT") {
+        paymentCount++;
+        itemSale = 0;
+        itemCollected = paid > 0 ? paid : amount;
+        itemDue = 0;
+      } else if (r.type === "DUE") {
+        dueCount++;
+        itemSale = 0;
+        itemCollected = paid;
+        itemDue = due > 0 ? due : amount;
+      }
+
+      totalSales += itemSale;
+      totalCollected += itemCollected;
+      totalDue += itemDue;
+
+      // Group by Day
+      const dObj = new Date(r.date);
+      const yyyy = dObj.getFullYear();
+      const mm = String(dObj.getMonth() + 1).padStart(2, "0");
+      const dd = String(dObj.getDate()).padStart(2, "0");
+      const dateKey = `${yyyy}-${mm}-${dd}`;
+
+      const existingDay = dailyMap.get(dateKey) || {
+        sales: 0,
+        collected: 0,
+        due: 0,
+        txCount: 0,
+        dateObj: dObj,
+      };
+      existingDay.sales += itemSale;
+      existingDay.collected += itemCollected;
+      existingDay.due += itemDue;
+      existingDay.txCount++;
+      dailyMap.set(dateKey, existingDay);
+
+      // Group by Customer
+      if (r.customer) {
+        const cId = r.customer.id;
+        const cSummary = customerMap.get(cId) || {
+          customerId: cId,
+          customerName: r.customer.name,
+          phone: r.customer.phone,
+          customerType: r.customer.type,
+          isVip: r.customer.is_vip,
+          totalSales: 0,
+          totalPaid: 0,
+          totalDue: 0,
+          txCount: 0,
+        };
+        cSummary.totalSales += itemSale;
+        cSummary.totalPaid += itemCollected;
+        cSummary.totalDue += itemDue;
+        cSummary.txCount++;
+        customerMap.set(cId, cSummary);
+
+        // Type breakdown
+        if (r.customer.type === "WHOLESALE") {
+          wholesaleSales += itemSale;
+          wholesaleCount++;
+        } else if (r.customer.type === "RETAIL") {
+          retailSales += itemSale;
+          retailCount++;
+        } else {
+          bothSales += itemSale;
+        }
+      }
+    }
+
+    totalSales = parseFloat(totalSales.toFixed(2));
+    totalCollected = parseFloat(totalCollected.toFixed(2));
+    totalDue = parseFloat(totalDue.toFixed(2));
+    const collectionRate =
+      totalSales > 0 ? parseFloat(((totalCollected / totalSales) * 100).toFixed(1)) : 0;
+    const avgSaleAmount = saleCount > 0 ? parseFloat((totalSales / saleCount).toFixed(2)) : 0;
+
+    // Convert dailyMap to sorted array
+    const dailyTrend: DailySalesTrend[] = Array.from(dailyMap.entries())
+      .map(([date, val]) => {
+        const d = val.dateObj;
+        const displayDate = `${d.getDate()}/${d.getMonth() + 1}`;
+        return {
+          date,
+          displayDate,
+          sales: parseFloat(val.sales.toFixed(2)),
+          collected: parseFloat(val.collected.toFixed(2)),
+          due: parseFloat(val.due.toFixed(2)),
+          txCount: val.txCount,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Top customers by Sales
+    const topCustomersBySales = Array.from(customerMap.values())
+      .filter((c) => c.totalSales > 0)
+      .sort((a, b) => b.totalSales - a.totalSales)
+      .slice(0, 5)
+      .map((c) => ({
+        ...c,
+        totalSales: parseFloat(c.totalSales.toFixed(2)),
+        totalPaid: parseFloat(c.totalPaid.toFixed(2)),
+        totalDue: parseFloat(c.totalDue.toFixed(2)),
+      }));
+
+    // Top customers with Outstanding Due
+    const topCustomersByDue = Array.from(customerMap.values())
+      .filter((c) => c.totalDue > 0)
+      .sort((a, b) => b.totalDue - a.totalDue)
+      .slice(0, 5)
+      .map((c) => ({
+        ...c,
+        totalSales: parseFloat(c.totalSales.toFixed(2)),
+        totalPaid: parseFloat(c.totalPaid.toFixed(2)),
+        totalDue: parseFloat(c.totalDue.toFixed(2)),
+      }));
+
+    // 3. Paginated Transactions
+    const total = allRecords.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const skip = (page - 1) * limit;
+    const paginatedRecords = allRecords.slice(skip, skip + limit);
+
+    const transactions: TransactionWithCustomer[] = paginatedRecords.map((r) => ({
+      id: r.id,
+      customer_id: r.customer_id,
+      type: r.type,
+      amount: r.amount,
+      paid_amount: r.paid_amount,
+      due_amount: r.due_amount,
+      description: r.description,
+      reference: r.reference,
+      date: r.date,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      customer: r.customer
+        ? {
+            id: r.customer.id,
+            name: r.customer.name,
+            phone: r.customer.phone,
+            email: r.customer.email,
+            address: r.customer.address,
+            type: r.customer.type,
+            is_vip: r.customer.is_vip,
+          }
+        : null,
+    }));
+
+    return {
+      metrics: {
+        totalSales,
+        totalCollected,
+        totalDue,
+        netTurnover: totalSales,
+        collectionRate,
+        totalTransactions: total,
+        saleCount,
+        paymentCount,
+        dueCount,
+        avgSaleAmount,
+      },
+      transactions,
+      total,
+      totalPages,
+      currentPage: page,
+      limit,
+      dailyTrend,
+      topCustomersBySales,
+      topCustomersByDue,
+      customerTypeBreakdown: {
+        retailSales: parseFloat(retailSales.toFixed(2)),
+        wholesaleSales: parseFloat(wholesaleSales.toFixed(2)),
+        bothSales: parseFloat(bothSales.toFixed(2)),
+        retailCount,
+        wholesaleCount,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getCentralSalesReportData:", error);
+    return {
+      metrics: {
+        totalSales: 0,
+        totalCollected: 0,
+        totalDue: 0,
+        netTurnover: 0,
+        collectionRate: 0,
+        totalTransactions: 0,
+        saleCount: 0,
+        paymentCount: 0,
+        dueCount: 0,
+        avgSaleAmount: 0,
+      },
+      transactions: [],
+      total: 0,
+      totalPages: 1,
+      currentPage: 1,
+      limit: options.limit || 25,
+      dailyTrend: [],
+      topCustomersBySales: [],
+      topCustomersByDue: [],
+      customerTypeBreakdown: {
+        retailSales: 0,
+        wholesaleSales: 0,
+        bothSales: 0,
+        retailCount: 0,
+        wholesaleCount: 0,
+      },
+    };
+  }
 }

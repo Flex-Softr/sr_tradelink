@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import {
   RiArrowLeftSLine,
+  RiCalendarLine,
   RiCheckLine,
   RiCloseLine,
   RiCoinsLine,
@@ -16,6 +17,7 @@ import {
   RiExchangeDollarLine,
   RiEyeLine,
   RiFileExcel2Line,
+  RiFilePdf2Line,
   RiFileTextLine,
   RiFilterLine,
   RiHandCoinLine,
@@ -23,8 +25,10 @@ import {
   RiMailLine,
   RiMapPinLine,
   RiPhoneLine,
+  RiPrinterLine,
   RiRefreshLine,
   RiSearchLine,
+  RiShieldCheckLine,
   RiShoppingBag3Line,
   RiVipCrownLine,
   RiWallet3Line,
@@ -53,6 +57,11 @@ import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import type { Customer, CustomerType } from "@/lib/customers";
+import {
+  calculateStatementLedger,
+  exportCustomerStatementPDF,
+  formatMoney,
+} from "@/lib/pdf-export";
 import {
   exportCustomerTransactionsToCSV,
   exportCustomerTransactionsToExcel,
@@ -143,7 +152,72 @@ export default function CustomerDetailsView({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [exportScope, setExportScope] = useState<"all" | "filtered">("all");
+
+  // Date filtering state
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [datePreset, setDatePreset] = useState<string>("all");
+
+  // Export Dialog States
+  const [exportFormat, setExportFormat] = useState<"pdf" | "xlsx" | "csv">("pdf");
+  const [exportScope, setExportScope] = useState<"all" | "filtered" | "custom">("all");
+  const [exportStartDate, setExportStartDate] = useState<string>("");
+  const [exportEndDate, setExportEndDate] = useState<string>("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Helper to apply quick date presets
+  const applyDatePreset = (preset: string, target: "filter" | "export") => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    let start = "";
+    let end = todayStr;
+
+    switch (preset) {
+      case "today":
+        start = todayStr;
+        end = todayStr;
+        break;
+      case "this_week": {
+        const d = new Date(today);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d.setDate(diff));
+        start = monday.toISOString().split("T")[0];
+        break;
+      }
+      case "this_month": {
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        start = firstDay.toISOString().split("T")[0];
+        break;
+      }
+      case "last_30_days": {
+        const past30 = new Date();
+        past30.setDate(past30.getDate() - 30);
+        start = past30.toISOString().split("T")[0];
+        break;
+      }
+      case "this_year": {
+        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+        start = firstDayOfYear.toISOString().split("T")[0];
+        break;
+      }
+      case "all":
+      default:
+        start = "";
+        end = "";
+        break;
+    }
+
+    if (target === "filter") {
+      setDatePreset(preset);
+      setStartDate(start);
+      setEndDate(end);
+      setCurrentPage(1);
+    } else {
+      setExportStartDate(start);
+      setExportEndDate(end);
+    }
+  };
 
   // Active transaction
   const [activeTx, setActiveTx] = useState<Transaction | null>(null);
@@ -210,7 +284,7 @@ export default function CustomerDetailsView({
     });
   };
 
-  // Filtered transactions
+  // Filtered transactions (with search, type, and date range)
   const filteredTransactions = useMemo(() => {
     return transactionsList.filter((tx) => {
       const term = searchTerm.toLowerCase().trim();
@@ -223,9 +297,29 @@ export default function CustomerDetailsView({
 
       const matchesType = selectedTypeFilter === "all" || tx.type === selectedTypeFilter;
 
-      return matchesSearch && matchesType;
+      const txDate = tx.date ? new Date(tx.date).toISOString().split("T")[0] : "";
+      const matchesStart = !startDate || (txDate && txDate >= startDate);
+      const matchesEnd = !endDate || (txDate && txDate <= endDate);
+
+      return matchesSearch && matchesType && matchesStart && matchesEnd;
     });
-  }, [transactionsList, searchTerm, selectedTypeFilter]);
+  }, [transactionsList, searchTerm, selectedTypeFilter, startDate, endDate]);
+
+  // Real-time ledger summary for the selected export scope / dates
+  const currentExportLedger = useMemo(() => {
+    let effStart = "";
+    let effEnd = "";
+
+    if (exportScope === "filtered") {
+      effStart = startDate;
+      effEnd = endDate;
+    } else if (exportScope === "custom") {
+      effStart = exportStartDate;
+      effEnd = exportEndDate;
+    }
+
+    return calculateStatementLedger(transactionsList, effStart, effEnd);
+  }, [transactionsList, exportScope, startDate, endDate, exportStartDate, exportEndDate]);
 
   // Paginated slice
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
@@ -258,25 +352,77 @@ export default function CustomerDetailsView({
     }
   };
 
-  // Export customer transactions
-  const handleExportTransactions = (format: "xlsx" | "csv") => {
-    const listToExport = exportScope === "filtered" ? filteredTransactions : transactionsList;
-    if (listToExport.length === 0) {
+  // Export customer transactions (PDF Statement / Excel / CSV)
+  const handleExportTransactions = async (
+    format: "pdf" | "xlsx" | "csv",
+    mode: "download" | "print" = "download"
+  ) => {
+    let effStart = "";
+    let effEnd = "";
+
+    if (exportScope === "filtered") {
+      effStart = startDate;
+      effEnd = endDate;
+    } else if (exportScope === "custom") {
+      effStart = exportStartDate;
+      effEnd = exportEndDate;
+    }
+
+    const ledger = calculateStatementLedger(transactionsList, effStart, effEnd);
+
+    if (ledger.entries.length === 0 && !ledger.startDate) {
       showFeedback("error", "ডাউনলোড করার মতো কোনো লেনদেন নেই");
       return;
     }
 
+    if (format === "pdf") {
+      try {
+        setIsGeneratingPdf(true);
+        await exportCustomerStatementPDF({
+          customer,
+          allTransactions: transactionsList,
+          startDate: effStart,
+          endDate: effEnd,
+          mode,
+        });
+        setIsExportOpen(false);
+        showFeedback(
+          "success",
+          mode === "print"
+            ? `${customer.name} এর ব্যাংক স্টেটমেন্ট প্রিন্ট প্রিভিউ প্রস্তুত হয়েছে!`
+            : `${customer.name} এর ব্যাংক স্টেটমেন্ট PDF সফলভাবে ডাউনলোড হয়েছে!`
+        );
+      } catch (err) {
+        console.error("PDF Export error:", err);
+        showFeedback("error", "পিডিএফ স্টেটমেন্ট তৈরি করতে সমস্যা হয়েছে");
+      } finally {
+        setIsGeneratingPdf(false);
+      }
+      return;
+    }
+
+    const listToExport = ledger.entries;
     if (format === "xlsx") {
       exportCustomerTransactionsToExcel({
         customer,
         transactions: listToExport,
-        summary,
+        summary: {
+          totalSales: ledger.totalDebit,
+          totalPaid: ledger.totalCredit,
+          totalDue: ledger.closingBalance,
+          transactionCount: listToExport.length,
+        },
       });
     } else {
       exportCustomerTransactionsToCSV({
         customer,
         transactions: listToExport,
-        summary,
+        summary: {
+          totalSales: ledger.totalDebit,
+          totalPaid: ledger.totalCredit,
+          totalDue: ledger.closingBalance,
+          transactionCount: listToExport.length,
+        },
       });
     }
 
@@ -515,7 +661,23 @@ export default function CustomerDetailsView({
               </Link>
 
               <Button
-                onClick={() => setIsExportOpen(true)}
+                onClick={() => {
+                  setExportFormat("pdf");
+                  setIsExportOpen(true);
+                }}
+                size="sm"
+                className="gap-1.5 border border-white/20 bg-emerald-950/40 text-xs font-semibold text-white shadow-xs backdrop-blur-xs hover:bg-emerald-950/70"
+                title="গ্রাহকের ব্যাংক ফরম্যাট লেনদেন স্টেটমেন্ট PDF তৈরি বা প্রিন্ট করুন"
+              >
+                <RiFilePdf2Line className="size-4 text-emerald-300" />
+                <span>স্টেটমেন্ট PDF</span>
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setExportFormat("xlsx");
+                  setIsExportOpen(true);
+                }}
                 size="sm"
                 className="gap-1.5 border border-white/20 bg-emerald-950/40 text-xs font-semibold text-white shadow-xs backdrop-blur-xs hover:bg-emerald-950/70"
                 title="গ্রাহকের সকল লেনদেন এক্সেল বা সিএসভি শিট ফরম্যাটে ডাউনলোড করুন"
@@ -706,7 +868,7 @@ export default function CustomerDetailsView({
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -721,11 +883,28 @@ export default function CustomerDetailsView({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsExportOpen(true)}
-              className="gap-1.5 border-emerald-600/30 text-xs text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              onClick={() => {
+                setExportFormat("pdf");
+                setIsExportOpen(true);
+              }}
+              className="gap-1.5 border-emerald-600/30 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              title="গ্রাহকের ব্যাংক লেনদেন বিবরণী PDF ডাউনলোড বা প্রিন্ট করুন"
+            >
+              <RiFilePdf2Line className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>স্টেটমেন্ট PDF</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setExportFormat("xlsx");
+                setIsExportOpen(true);
+              }}
+              className="gap-1.5 border-slate-300 text-xs text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
               title="সকল লেনদেনের খতিয়ান শিট ডাউনলোড করুন"
             >
-              <RiFileExcel2Line className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              <RiFileExcel2Line className="size-3.5 text-slate-600 dark:text-slate-400" />
               <span>শিট ডাউনলোড</span>
             </Button>
 
@@ -741,54 +920,146 @@ export default function CustomerDetailsView({
         </CardHeader>
 
         <CardContent className="space-y-4 pt-5">
-          {/* Search and Filters */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Search Box */}
-            <div className="relative max-w-md flex-1">
-              <RiSearchLine className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                type="text"
-                placeholder="বিবরণ, চালান বা ভাউচার নং দিয়ে খুঁজুন..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9 text-sm"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchTerm("");
+          {/* Search, Type and Date Filters */}
+          <div className="flex flex-col gap-3">
+            {/* Top row: Search & Type */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Search Box */}
+              <div className="relative max-w-md flex-1">
+                <RiSearchLine className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="বিবরণ, চালান বা ভাউচার নং দিয়ে খুঁজুন..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="pl-9 text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCurrentPage(1);
+                    }}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <RiCloseLine className="size-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Type and Preset Filter */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <RiFilterLine className="size-3.5" />
+                  <span>ধরন:</span>
+                </div>
+                <select
+                  value={selectedTypeFilter}
+                  onChange={(e) => {
+                    setSelectedTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs focus:border-green-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  <RiCloseLine className="size-4" />
-                </button>
-              )}
+                  <option value="all">সকল ধরন ({transactionsList.length})</option>
+                  <option value="SALE">বিক্রয় (SALE)</option>
+                  <option value="PAYMENT">পরিশোধ (PAYMENT)</option>
+                  <option value="DUE">বকেয়া (DUE)</option>
+                </select>
+              </div>
             </div>
 
-            {/* Type Filter */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <RiFilterLine className="size-3.5" />
-                <span>ধরন:</span>
+            {/* Bottom row: Bank-Style Date-wise Filter Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-emerald-950/10 bg-emerald-50/40 p-2.5 text-xs dark:border-emerald-500/10 dark:bg-emerald-950/20">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 font-semibold text-emerald-800 dark:text-emerald-300">
+                  <RiCalendarLine className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>তারিখ অনুসারে ফিল্টার:</span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 dark:text-slate-400">হতে</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setDatePreset("custom");
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 dark:text-slate-400">পর্যন্ত</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setDatePreset("custom");
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  />
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap items-center gap-1">
+                  {[
+                    { id: "all", label: "সকল সময়" },
+                    { id: "today", label: "আজ" },
+                    { id: "this_week", label: "এই সপ্তাহ" },
+                    { id: "this_month", label: "এই মাস" },
+                    { id: "last_30_days", label: "৩০ দিন" },
+                    { id: "this_year", label: "এই বছর" },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => applyDatePreset(p.id, "filter")}
+                      className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                        datePreset === p.id && !startDate && !endDate && p.id === "all"
+                          ? "bg-emerald-600 text-white"
+                          : datePreset === p.id && p.id !== "all"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <select
-                value={selectedTypeFilter}
-                onChange={(e) => {
-                  setSelectedTypeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs focus:border-green-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <option value="all">সকল ধরন ({transactionsList.length})</option>
-                <option value="SALE">বিক্রয় (SALE)</option>
-                <option value="PAYMENT">পরিশোধ (PAYMENT)</option>
-                <option value="DUE">বকেয়া (DUE)</option>
-              </select>
+
+              {/* Status & Reset */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                  ফিল্টারে: <strong>{filteredTransactions.length}</strong> টি লেনদেন
+                </span>
+                {(startDate || endDate || searchTerm || selectedTypeFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedTypeFilter("all");
+                      setStartDate("");
+                      setEndDate("");
+                      setDatePreset("all");
+                      setCurrentPage(1);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                  >
+                    <RiCloseLine className="size-3.5" />
+                    রিসেট
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1385,117 +1656,358 @@ export default function CustomerDetailsView({
         </DialogContent>
       </Dialog>
 
-      {/* Export Transactions Sheet Dialog */}
+      {/* Export Transactions Sheet & PDF Dialog */}
       <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                <RiFileExcel2Line className="size-5" />
+              <div
+                className={`flex size-8 items-center justify-center rounded-lg ${
+                  exportFormat === "pdf"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                    : exportFormat === "xlsx"
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                      : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                }`}
+              >
+                {exportFormat === "pdf" ? (
+                  <RiFilePdf2Line className="size-5" />
+                ) : exportFormat === "xlsx" ? (
+                  <RiFileExcel2Line className="size-5" />
+                ) : (
+                  <RiDownloadLine className="size-5" />
+                )}
               </div>
-              লেনদেন ও খতিয়ান শিট ডাউনলোড
+              গ্রাহক হিসাব বিবরণী ও খতিয়ান ডাউনলোড
             </DialogTitle>
             <DialogDescription>
-              {customer.name} এর সকল বিক্রয়, নগদ পরিশোধ ও বকেয়া হিসাবের পূর্ণাঙ্গ খতিয়ান
-              স্প্রেডশিট ডাউনলোড করুন
+              {customer.name} এর ব্যাংক ফরম্যাট লেনদেন স্টেটমেন্ট (অফিসিয়াল হেডার ও সিল সহ) অথবা
+              এক্সেল/সিএসভি শিট ডাউনলোড করুন
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
-            {/* Quick Balance Preview */}
-            <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/50">
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">মোট বিক্রয়</span>
-                  <p className="mt-0.5 font-bold text-blue-600 dark:text-blue-400">
-                    ৳ {summary.totalSales.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">মোট পরিশোধ</span>
-                  <p className="mt-0.5 font-bold text-emerald-600 dark:text-emerald-400">
-                    ৳ {summary.totalPaid.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">নিট বকেয়া</span>
-                  <p className="mt-0.5 font-bold text-rose-600 dark:text-rose-400">
-                    ৳ {summary.totalDue.toLocaleString("en-IN")}
-                  </p>
-                </div>
+          <div className="space-y-4 py-2">
+            {/* Format Selector Tabs */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                ফাইলের ফরম্যাট নির্বাচন করুন:
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportFormat("pdf")}
+                  className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-center transition-all ${
+                    exportFormat === "pdf"
+                      ? "border-emerald-600 bg-emerald-50/80 font-bold text-emerald-900 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RiFilePdf2Line className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs">PDF স্টেটমেন্ট</span>
+                  </div>
+                  <span className="mt-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                    ব্যাংক ফরম্যাট ও সিল
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setExportFormat("xlsx")}
+                  className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-center transition-all ${
+                    exportFormat === "xlsx"
+                      ? "border-emerald-600 bg-emerald-50/80 font-bold text-emerald-900 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RiFileExcel2Line className="size-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs">Excel শিট</span>
+                  </div>
+                  <span className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                    .xlsx স্প্রেডশিট
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setExportFormat("csv")}
+                  className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-center transition-all ${
+                    exportFormat === "csv"
+                      ? "border-emerald-600 bg-emerald-50/80 font-bold text-emerald-900 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RiDownloadLine className="size-4 text-slate-600 dark:text-slate-400" />
+                    <span className="text-xs">CSV ফাইল</span>
+                  </div>
+                  <span className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                    .csv ডেটা
+                  </span>
+                </button>
               </div>
             </div>
 
-            {/* Scope Selection */}
+            {/* Scope & Date Range Selection */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                ডাউনলোডের আওতা (Scope)
+                তারিখের আওতা (Date Range Scope):
               </Label>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setExportScope("all")}
-                  className={`flex flex-col rounded-lg border p-3 text-left transition-all ${
+                  className={`rounded-lg border p-2 text-left transition-all ${
                     exportScope === "all"
                       ? "border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40"
-                      : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-800"
                   }`}
                 >
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
                     সকল লেনদেন
                   </span>
-                  <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    মোট {transactionsList.length} টি ভাউচার
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    মোট {transactionsList.length} টি
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setExportScope("filtered")}
-                  className={`flex flex-col rounded-lg border p-3 text-left transition-all ${
+                  className={`rounded-lg border p-2 text-left transition-all ${
                     exportScope === "filtered"
                       ? "border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40"
-                      : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-800"
                   }`}
                 >
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    ফিল্টারকৃত তালিকা
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                    অন-স্ক্রিন ফিল্টার
                   </span>
-                  <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    বর্তমান ফিল্টারে {filteredTransactions.length} টি
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    বর্তমান {filteredTransactions.length} টি
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportScope("custom");
+                    if (!exportStartDate && !exportEndDate) {
+                      applyDatePreset("this_month", "export");
+                    }
+                  }}
+                  className={`rounded-lg border p-2 text-left transition-all ${
+                    exportScope === "custom"
+                      ? "border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 dark:border-emerald-500 dark:bg-emerald-950/40"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-800"
+                  }`}
+                >
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                    কাস্টম তারিখ
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    নির্দিষ্ট সময়কাল
                   </span>
                 </button>
               </div>
+
+              {/* Custom Date Range Selector (When custom scope is selected) */}
+              {exportScope === "custom" && (
+                <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[11px] text-slate-600 dark:text-slate-400">
+                        শুরুর তারিখ (From Date):
+                      </Label>
+                      <input
+                        type="date"
+                        value={exportStartDate}
+                        onChange={(e) => setExportStartDate(e.target.value)}
+                        className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-slate-600 dark:text-slate-400">
+                        শেষ তারিখ (To Date):
+                      </Label>
+                      <input
+                        type="date"
+                        value={exportEndDate}
+                        onChange={(e) => setExportEndDate(e.target.value)}
+                        className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Preset Buttons for Export */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">প্রিসেট:</span>
+                    {[
+                      { id: "today", label: "আজ" },
+                      { id: "this_week", label: "এই সপ্তাহ" },
+                      { id: "this_month", label: "এই মাস" },
+                      { id: "last_30_days", label: "৩০ দিন" },
+                      { id: "this_year", label: "এই বছর" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => applyDatePreset(p.id, "export")}
+                        className="rounded-md bg-white px-2 py-0.5 text-[10.5px] font-medium text-slate-700 shadow-2xs hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1 rounded-lg bg-emerald-50/60 p-3 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-              <p className="font-semibold">এক্সেল (.xlsx) শিটের সুবিধা:</p>
-              <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
-                এক্সেল শিটে প্রতিষ্ঠানের নাম, গ্রাহকের পরিচিতি, মোট হিসাব সারসংক্ষেপ এবং প্রতিটি
-                ভাউচারের তারিখ, মোট টাকা, পরিশোধ, অবশিষ্ট বকেয়া ও নোট কলাম আকারে সুবিন্যস্ত থাকে।
-              </p>
+            {/* Live Ledger Financial Summary Preview */}
+            <div className="space-y-1.5 rounded-lg border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  বিবরণীর হিসাব সারসংক্ষেপ:
+                </span>
+                <span>
+                  সময়কাল:{" "}
+                  <strong>
+                    {currentExportLedger.startDate && currentExportLedger.endDate
+                      ? `${currentExportLedger.startDate} হতে ${currentExportLedger.endDate}`
+                      : currentExportLedger.startDate
+                        ? `${currentExportLedger.startDate} হতে অদ্যাবধি`
+                        : "সর্বমোট লেনদেন"}
+                  </strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 pt-1 text-center text-xs">
+                <div className="rounded-md border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-950">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    প্রারম্ভিক জের
+                  </span>
+                  <p className="mt-0.5 font-bold text-slate-800 dark:text-slate-200">
+                    ৳ {formatMoney(currentExportLedger.openingBalance)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-950">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    মোট বিক্রয়/ডেবিট
+                  </span>
+                  <p className="mt-0.5 font-bold text-blue-600 dark:text-blue-400">
+                    ৳ {formatMoney(currentExportLedger.totalDebit)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-950">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    মোট জমা/ক্রেডিট
+                  </span>
+                  <p className="mt-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+                    ৳ {formatMoney(currentExportLedger.totalCredit)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-950">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    সমাপনী বকেয়া
+                  </span>
+                  <p
+                    className={`mt-0.5 font-bold ${
+                      currentExportLedger.closingBalance > 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    ৳ {formatMoney(currentExportLedger.closingBalance)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 text-[10.5px] text-slate-500 dark:text-slate-400">
+                <span>
+                  অন্তর্ভুক্ত হবে: <strong>{currentExportLedger.transactionCount}</strong> টি ভাউচার
+                </span>
+                <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                  {exportFormat === "pdf" ? "✓ অনুমোদিত সিল ও স্বাক্ষর সহ" : "✓ স্প্রেডশিট কলাম সহ"}
+                </span>
+              </div>
             </div>
+
+            {/* Feature Highlights Note */}
+            {exportFormat === "pdf" ? (
+              <div className="space-y-1 rounded-lg bg-emerald-50/70 p-2.5 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <RiShieldCheckLine className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>ব্যাংক স্টেটমেন্ট PDF ফরম্যাটের সুবিধাসমূহ:</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                  এসআর ট্রেডলিংক এর অফিসিয়াল হেডার, গ্রাহকের তথ্য, তারিখভিত্তিক প্রারম্ভিক ও সমাপনী
+                  জের, প্রতিটি চালানের ডেবিট/ক্রেডিট ও রানিং ব্যালেন্স এবং হিসাবরক্ষক ও কর্তৃপক্ষের
+                  অনুমোদিত স্বাক্ষর ও সিলসহ A4 সাইজে প্রস্তুত হবে।
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+                <p className="font-semibold text-slate-800 dark:text-slate-200">
+                  স্প্রেডশিটের বৈশিষ্ট্য:
+                </p>
+                <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  প্রতিষ্ঠান ও গ্রাহকের নাম, তারিখ, চালান/মেমো নং, মোট টাকা, পরিশোধ, বকেয়া এবং
+                  বিবরণ কলাম আকারে সাজানো থাকবে।
+                </p>
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             <DialogClose render={<Button variant="outline" size="sm" />}>বাতিল</DialogClose>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExportTransactions("csv")}
-              className="gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-            >
-              <RiDownloadLine className="size-4" />
-              <span>CSV (.csv)</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleExportTransactions("xlsx")}
-              className="gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
-            >
-              <RiFileExcel2Line className="size-4" />
-              <span>Excel (.xlsx) ডাউনলোড</span>
-            </Button>
+
+            {exportFormat === "pdf" ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportTransactions("pdf", "print")}
+                  disabled={isGeneratingPdf}
+                  className="gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+                >
+                  <RiPrinterLine className="size-4 text-slate-600" />
+                  <span>প্রিন্ট / প্রিভিউ</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => handleExportTransactions("pdf", "download")}
+                  disabled={isGeneratingPdf}
+                  className="gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                >
+                  {isGeneratingPdf ? (
+                    <RiLoader4Line className="size-4 animate-spin" />
+                  ) : (
+                    <RiFilePdf2Line className="size-4" />
+                  )}
+                  <span>PDF স্টেটমেন্ট ডাউনলোড</span>
+                </Button>
+              </>
+            ) : exportFormat === "xlsx" ? (
+              <Button
+                size="sm"
+                onClick={() => handleExportTransactions("xlsx")}
+                className="gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+              >
+                <RiFileExcel2Line className="size-4" />
+                <span>Excel (.xlsx) ডাউনলোড</span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => handleExportTransactions("csv")}
+                className="gap-1.5 bg-slate-800 text-white shadow-sm hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+              >
+                <RiDownloadLine className="size-4" />
+                <span>CSV (.csv) ডাউনলোড</span>
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -7,8 +7,10 @@ import { useSearchParams } from "next/navigation";
 
 import {
   RiArrowRightUpLine,
+  RiBarChartBoxLine,
   RiBox3Line,
   RiCheckDoubleLine,
+  RiFileList3Line,
   RiGroupLine,
   RiProductHuntLine,
   RiShieldUserLine,
@@ -17,6 +19,7 @@ import {
 
 import CustomerManagement from "@/components/dashboard/CustomerManagement";
 import ProductManagement from "@/components/dashboard/ProductManagement";
+import SalesReportView from "@/components/dashboard/SalesReportView";
 import UserManagement from "@/components/dashboard/UserManagement";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +33,7 @@ interface DashboardTabsProps {
   initialUsers: SafeUser[];
 }
 
-type TabType = "products" | "customers" | "users";
+type TabType = "products" | "customers" | "users" | "sales";
 
 function DashboardTabsContent({
   initialProducts,
@@ -43,11 +46,14 @@ function DashboardTabsContent({
 
   // Derive activeTab prioritizing query param if present
   const activeTab: TabType =
-    tabParam === "customers" || tabParam === "products" || tabParam === "users"
+    tabParam === "customers" ||
+    tabParam === "products" ||
+    tabParam === "users" ||
+    tabParam === "sales"
       ? tabParam
       : selectedTab;
 
-  // Listen for hash changes (e.g. from navbar clicks #customers, #products, #users)
+  // Listen for hash changes (e.g. from navbar clicks #customers, #products, #users, #sales)
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash.toLowerCase();
@@ -57,6 +63,8 @@ function DashboardTabsContent({
         setSelectedTab("products");
       } else if (hash.includes("user")) {
         setSelectedTab("users");
+      } else if (hash.includes("sale") || hash.includes("report")) {
+        setSelectedTab("sales");
       }
     };
 
@@ -84,7 +92,7 @@ function DashboardTabsContent({
   return (
     <div className="space-y-6">
       {/* Top Level Metric Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
         {/* Total Products */}
         <Card
           onClick={() => handleTabChange("products")}
@@ -147,6 +155,43 @@ function DashboardTabsContent({
             <Link
               href="/dashboard/customers"
               title="গ্রাহক পৃষ্ঠায় যান"
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RiArrowRightUpLine className="size-4" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Sales & Cashflow Report Card */}
+        <Card
+          onClick={() => handleTabChange("sales")}
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+            activeTab === "sales"
+              ? "border-blue-500/50 bg-blue-50/40 ring-2 ring-blue-500/20 dark:bg-blue-950/20 dark:ring-blue-500/30"
+              : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
+          }`}
+        >
+          <CardContent className="flex items-center justify-between p-4 sm:p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                <RiBarChartBoxLine className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  বিক্রয় রিপোর্ট
+                </p>
+                <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
+                  কেন্দ্রীয় অডিট
+                </h3>
+                <p className="text-[11px] font-medium text-blue-700 dark:text-blue-400">
+                  বিক্রয় ও বকেয়া হিসাব
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/sales"
+              title="বিক্রয় রিপোর্ট পৃষ্ঠায় যান"
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
@@ -218,7 +263,7 @@ function DashboardTabsContent({
 
       {/* Main Tab Navigation Header */}
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
-        <div className="inline-flex rounded-xl bg-slate-100 p-1.5 dark:bg-slate-800/80">
+        <div className="inline-flex flex-wrap rounded-xl bg-slate-100 p-1.5 dark:bg-slate-800/80">
           <button
             type="button"
             onClick={() => handleTabChange("products")}
@@ -262,6 +307,29 @@ function DashboardTabsContent({
               }`}
             >
               {totalCustomers}
+            </Badge>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("sales")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
+              activeTab === "sales"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <RiFileList3Line className="size-4 text-blue-600 dark:text-blue-400" />
+            <span>বিক্রয় ও আর্থিক রিপোর্ট</span>
+            <Badge
+              variant={activeTab === "sales" ? "default" : "secondary"}
+              className={`ml-1 px-2 py-0.5 text-xs ${
+                activeTab === "sales"
+                  ? "bg-blue-600 text-white hover:bg-blue-600"
+                  : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+              }`}
+            >
+              অডিট
             </Badge>
           </button>
 
@@ -315,6 +383,15 @@ function DashboardTabsContent({
             </Link>
           )}
 
+          {activeTab === "sales" && (
+            <Link
+              href="/dashboard/sales"
+              className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline dark:text-blue-400"
+            >
+              পূর্ণাঙ্গ বিক্রয় পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
+            </Link>
+          )}
+
           {activeTab === "users" && (
             <Link
               href="/dashboard/users"
@@ -340,6 +417,12 @@ function DashboardTabsContent({
           </div>
         )}
 
+        {activeTab === "sales" && (
+          <div className="animate-in fade-in duration-200">
+            <SalesReportView initialCustomers={initialCustomers} />
+          </div>
+        )}
+
         {activeTab === "users" && (
           <div className="animate-in fade-in duration-200">
             <UserManagement initialUsers={initialUsers} />
@@ -355,8 +438,8 @@ export default function DashboardTabs(props: DashboardTabsProps) {
     <Suspense
       fallback={
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
                 className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100/60 dark:border-slate-800 dark:bg-slate-800/60"

@@ -6,16 +6,29 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import {
+  type CentralSalesReportResult,
   type CustomerTransactionSummary,
+  type GetCentralSalesReportOptions,
   type GetTransactionsOptions,
   type Transaction,
   type TransactionInput,
   createTransaction,
   deleteTransaction,
+  getCentralSalesReportData,
   getCustomerTransactionSummary,
   getTransactionsByCustomerId,
   updateTransaction,
 } from "@/lib/transactions";
+
+export async function fetchCentralSalesReportAction(
+  options: GetCentralSalesReportOptions = {}
+): Promise<CentralSalesReportResult> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    throw new Error("অননুমোদিত অ্যাক্সেস। অনুগ্রহ করে লগইন করুন।");
+  }
+  return await getCentralSalesReportData(options);
+}
 
 export async function fetchTransactionsAction(
   customerId: string,

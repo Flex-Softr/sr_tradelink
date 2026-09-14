@@ -13,12 +13,14 @@ import {
   RiErrorWarningLine,
   RiEyeLine,
   RiFileExcel2Line,
+  RiFilePdf2Line,
   RiFileTextLine,
   RiFilterLine,
   RiLoader4Line,
   RiMailLine,
   RiMapPinLine,
   RiPhoneLine,
+  RiPrinterLine,
   RiRefreshLine,
   RiSearchLine,
   RiStoreLine,
@@ -50,6 +52,7 @@ import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import type { Customer, CustomerInput, CustomerType } from "@/lib/customers";
+import { exportCustomerListPDF } from "@/lib/pdf-export";
 import { exportCustomersToCSV, exportCustomersToExcel } from "@/lib/sheet-export";
 
 const CUSTOMER_TYPES: { value: CustomerType; label: string; desc: string }[] = [
@@ -100,6 +103,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportScope, setExportScope] = useState<"all" | "filtered">("all");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Active customer for view / edit / delete
   const [activeCustomer, setActiveCustomer] = useState<Customer | null>(null);
@@ -186,8 +190,11 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
     }
   };
 
-  // Export customers sheet
-  const handleExport = (format: "xlsx" | "csv") => {
+  // Export customers sheet & PDF
+  const handleExport = async (
+    format: "pdf" | "xlsx" | "csv",
+    mode: "download" | "print" = "download"
+  ) => {
     const listToExport = exportScope === "filtered" ? filteredCustomers : customersList;
     if (listToExport.length === 0) {
       showFeedback("error", "ডাউনলোড করার মতো কোনো গ্রাহক পাওয়া যায়নি");
@@ -195,6 +202,32 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
     }
     const today = new Date().toISOString().split("T")[0];
     const prefix = exportScope === "filtered" ? "ফিল্টারকৃত_গ্রাহক_তালিকা" : "সকল_গ্রাহক_তালিকা";
+
+    if (format === "pdf") {
+      try {
+        setIsGeneratingPdf(true);
+        await exportCustomerListPDF({
+          customers: listToExport,
+          filterScope: exportScope,
+          customFileName: `${prefix}_${today}.pdf`,
+          mode,
+        });
+        setIsExportOpen(false);
+        showFeedback(
+          "success",
+          mode === "print"
+            ? "গ্রাহক তালিকা প্রিন্ট প্রিভিউ প্রস্তুত হয়েছে!"
+            : `${listToExport.length} জন গ্রাহকের PDF তালিকা সফলভাবে ডাউনলোড হয়েছে!`
+        );
+      } catch (err) {
+        console.error("PDF Export error:", err);
+        showFeedback("error", "পিডিএফ রিপোর্ট তৈরি করতে সমস্যা হয়েছে");
+      } finally {
+        setIsGeneratingPdf(false);
+      }
+      return;
+    }
+
     if (format === "xlsx") {
       exportCustomersToExcel(listToExport, `${prefix}_${today}.xlsx`);
     } else {
@@ -1217,13 +1250,13 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
               <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                <RiFileExcel2Line className="size-5" />
+                <RiFileTextLine className="size-5" />
               </div>
-              গ্রাহক তালিকা শিট ডাউনলোড
+              গ্রাহক তালিকা ও রিপোর্ট ডাউনলোড
             </DialogTitle>
             <DialogDescription>
-              এক্সেল (.xlsx) বা সিএসভি (.csv) স্প্রেডশিট ফরম্যাটে গ্রাহকদের বিস্তারিত তালিকা ডাউনলোড
-              করুন
+              এসআর ট্রেডলিংক এর অফিসিয়াল হেডার ও স্বাক্ষর সহ PDF রিপোর্ট অথবা এক্সেল/সিএসভি
+              স্প্রেডশিট ডাউনলোড করুন
             </DialogDescription>
           </DialogHeader>
 
@@ -1269,19 +1302,27 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
               </div>
             </div>
 
-            <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              <p className="font-semibold text-slate-800 dark:text-slate-200">
-                শিটে অন্তর্ভুক্ত কলামসমূহ:
-              </p>
-              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-                ক্রমিক নং, গ্রাহকের নাম, মোবাইল নম্বর, ইমেইল, গ্রাহকের ধরণ (খুচরা/পাইকারি), ঠিকানা,
-                ভিআইপি স্ট্যাটাস, নিবন্ধনের তারিখ।
+            <div className="space-y-1 rounded-lg bg-emerald-50/60 p-3 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <p className="font-semibold">পিডিএফ (.pdf) রিপোর্টের বৈশিষ্ট্য:</p>
+              <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                এসআর ট্রেডলিংক এর অফিসিয়াল ব্র্যান্ডিং হেডার, ঠিকানা ও যোগাযোগের তথ্য, গ্রাহক
+                পরিসংখ্যান এবং যাচাইকরণের জন্য অনুমোদিত স্বাক্ষর ও সিল অন্তর্ভুক্ত থাকে।
               </p>
             </div>
           </div>
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             <DialogClose render={<Button variant="outline" size="sm" />}>বাতিল</DialogClose>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf", "print")}
+              disabled={isGeneratingPdf}
+              className="gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+            >
+              <RiPrinterLine className="size-4 text-slate-600" />
+              <span>প্রিন্ট / প্রিভিউ</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1292,12 +1333,26 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
               <span>CSV (.csv)</span>
             </Button>
             <Button
+              variant="outline"
               size="sm"
               onClick={() => handleExport("xlsx")}
-              className="gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+              className="gap-1.5 border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300"
             >
               <RiFileExcel2Line className="size-4" />
-              <span>Excel (.xlsx) ডাউনলোড</span>
+              <span>Excel (.xlsx)</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => handleExport("pdf", "download")}
+              disabled={isGeneratingPdf}
+              className="gap-1.5 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+            >
+              {isGeneratingPdf ? (
+                <RiLoader4Line className="size-4 animate-spin" />
+              ) : (
+                <RiFilePdf2Line className="size-4" />
+              )}
+              <span>PDF (.pdf) ডাউনলোড</span>
             </Button>
           </DialogFooter>
         </DialogContent>
