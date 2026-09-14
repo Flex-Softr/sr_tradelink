@@ -20,30 +20,32 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 z-50 w-full bg-white/80 shadow-sm backdrop-blur-md">
+    <nav className="fixed top-0 z-50 w-full bg-white/80 shadow-xs backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-full">
+          <Link href="/" className="flex shrink-0 items-center gap-3">
+            <div className="relative size-10 shrink-0 overflow-hidden rounded-full">
               <Image
                 src="/images/sr-logo.jpeg"
-                alt="SR Tradelinek Logo"
+                alt="SR Tradelink Logo"
                 fill
                 sizes="40px"
                 className="object-cover"
               />
             </div>
-            <span className="text-xl font-bold text-green-700">এস আর ট্রেডলিংক</span>
+            <span className="text-xl font-bold whitespace-nowrap text-green-700">
+              এস আর ট্রেডলিংক
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden items-center gap-8 lg:flex">
+          <div className="hidden shrink-0 items-center gap-8 lg:flex">
             {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-semibold text-green-700 transition hover:text-green-800"
+                className="font-semibold whitespace-nowrap text-green-700 transition hover:text-green-800"
               >
                 {link.label}
               </Link>
@@ -55,7 +57,7 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="rounded-lg p-2 text-green-700 hover:bg-green-50 lg:hidden"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {mobileMenuOpen ? (
                 <path
                   strokeLinecap="round"
@@ -84,7 +86,7 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="font-semibold text-green-700 transition hover:text-green-800"
+                  className="font-semibold whitespace-nowrap text-green-700 transition hover:text-green-800"
                 >
                   {link.label}
                 </Link>
