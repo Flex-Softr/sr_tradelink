@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { RiGlobalLine, RiUserStarLine } from "@remixicon/react";
+import { RiUserStarLine } from "@remixicon/react";
 import { getServerSession } from "next-auth";
 
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
@@ -57,13 +56,6 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <RiGlobalLine className="size-4" />
-              মূল ওয়েবসাইট দেখুন
-            </Link>
             <LogoutButton />
           </div>
         </div>

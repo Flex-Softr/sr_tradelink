@@ -4,13 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import {
-  RiArrowRightUpLine,
-  RiDashboardLine,
-  RiLogoutBoxRLine,
-  RiShieldUserLine,
-  RiUser3Line,
-} from "@remixicon/react";
+import { RiDashboardLine, RiLogoutBoxRLine, RiShieldUserLine, RiUser3Line } from "@remixicon/react";
 import { signOut } from "next-auth/react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -132,20 +126,6 @@ export default function UserDropdown({ user }: UserDropdownProps) {
             >
               <RiShieldUserLine className="size-4 text-slate-500 dark:text-slate-400" />
               <span>ব্যবহারকারী ব্যবস্থাপনা</span>
-            </Link>
-
-            <Link
-              href="/"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setIsOpen(false)}
-              role="menuitem"
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <span className="flex items-center gap-2.5">
-                <RiArrowRightUpLine className="size-4 text-slate-500 dark:text-slate-400" />
-                মূল ওয়েবসাইট
-              </span>
             </Link>
           </div>
 

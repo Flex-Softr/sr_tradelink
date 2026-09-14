@@ -7,7 +7,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
-  RiArrowRightUpLine,
   RiBarChartBoxLine,
   RiCloseLine,
   RiDashboardLine,
@@ -119,21 +118,8 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
           </nav>
         </div>
 
-        {/* Right: Quick Site Link & User Profile Dropdown Menu */}
+        {/* Right: User Profile Dropdown Menu */}
         <div className="hidden shrink-0 items-center gap-3.5 md:flex">
-          <Link
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-          >
-            <span>মূল ওয়েবসাইট</span>
-            <RiArrowRightUpLine className="size-3.5 shrink-0" />
-          </Link>
-
-          <div className="h-5 w-px shrink-0 bg-slate-200 dark:bg-slate-800" />
-
-          {/* User Menu Dropdown */}
           <UserDropdown user={user} />
         </div>
 
@@ -198,15 +184,6 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
                 </Link>
               );
             })}
-
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <span>ওয়েবসাইটে ফিরে যান</span>
-              <RiArrowRightUpLine className="size-4 shrink-0" />
-            </Link>
 
             <div className="pt-2">
               <LogoutButton />
