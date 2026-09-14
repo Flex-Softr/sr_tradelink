@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:standalone": "./start-standalone.sh",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "postinstall": "prisma skills sync || exit 0",
+    "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "docker:build": "docker build -t sr_tradelink:latest .",
     "docker:run": "docker run -p 3000:3000 --env-file .env sr_tradelink:latest"
@@ -34,6 +35,8 @@
     "argon2": "^0.45.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "next": "16.3.4",
     "next-auth": "^4.24.15",
     "react": "19.2.8",
@@ -60,7 +63,6 @@
     "tsx": "^4.23.13",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@11.25.0",
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   }
