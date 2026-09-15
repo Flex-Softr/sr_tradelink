@@ -36,40 +36,44 @@ export interface GetCustomersOptions {
 let indexesEnsured = false;
 
 /**
- * Ensure MongoDB indexes on customers collection are sparse
+ * Ensure MongoDB indexes on customers collection are partial unique
  * so multiple customers with null email/phone can coexist without collision.
  */
 export async function ensureCustomerSparseIndexes(): Promise<void> {
   if (indexesEnsured) return;
   try {
-    const listRes = (await prisma.$runCommandRaw({
-      listIndexes: "customers",
-    })) as { cursor?: { firstBatch?: Array<{ name: string; sparse?: boolean }> } };
-
-    const indexes = listRes?.cursor?.firstBatch || [];
-    const emailIndex = indexes.find((i) => i.name === "customers_email_key");
-    const phoneIndex = indexes.find((i) => i.name === "customers_phone_key");
-
-    if (emailIndex && !emailIndex.sparse) {
+    try {
       await prisma.$runCommandRaw({ dropIndexes: "customers", index: "customers_email_key" });
+    } catch {
+      // ignore if does not exist
     }
-    if (phoneIndex && !phoneIndex.sparse) {
+    try {
       await prisma.$runCommandRaw({ dropIndexes: "customers", index: "customers_phone_key" });
+    } catch {
+      // ignore if does not exist
     }
 
-    if (!emailIndex?.sparse || !phoneIndex?.sparse) {
-      await prisma.$runCommandRaw({
-        createIndexes: "customers",
-        indexes: [
-          { key: { email: 1 }, name: "customers_email_key", unique: true, sparse: true },
-          { key: { phone: 1 }, name: "customers_phone_key", unique: true, sparse: true },
-        ],
-      });
-    }
+    await prisma.$runCommandRaw({
+      createIndexes: "customers",
+      indexes: [
+        {
+          key: { email: 1 },
+          name: "customers_email_key",
+          unique: true,
+          partialFilterExpression: { email: { $type: "string" } },
+        },
+        {
+          key: { phone: 1 },
+          name: "customers_phone_key",
+          unique: true,
+          partialFilterExpression: { phone: { $type: "string" } },
+        },
+      ],
+    });
 
     indexesEnsured = true;
   } catch (error) {
-    console.warn("Could not configure sparse indexes on customers collection:", error);
+    console.warn("Could not configure partial indexes on customers collection:", error);
   }
 }
 

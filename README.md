@@ -270,6 +270,7 @@ npm run docker:run
 | `npm run start`            | Runs standard Next.js production server.                                     |
 | `npm run start:standalone` | Syncs static assets and boots the Next.js standalone Node server.            |
 | `npm run db:seed`          | Seeds database with initial admin user and default products.                 |
+| `npm run db:sync-legacy`   | Migrates and syncs all legacy MongoDB data (clients, partys, products, txs). |
 | `npm run lint`             | Analyzes code for ESLint rule violations.                                    |
 | `npm run format`           | Auto-formats code with Prettier.                                             |
 | `npm run format:check`     | Checks code formatting against Prettier standards.                           |
