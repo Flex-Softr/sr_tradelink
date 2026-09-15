@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import type { Product, ProductInput, ProductUnit } from "@/lib/products";
+import { sanitizeImageUrl } from "@/lib/utils";
 
 const PRESET_BADGES = ["Farmer's Choice", "Hot", "Balanced", "Recommended", "Premium"];
 const PRESET_UNITS: ProductUnit[] = ["KG", "G"];
@@ -575,13 +576,16 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-xs dark:border-slate-800 dark:bg-slate-800">
-                            {item.image ? (
+                            {sanitizeImageUrl(item.image) ? (
                               <Image
-                                src={item.image}
+                                src={sanitizeImageUrl(item.image)!}
                                 alt={item.name}
                                 fill
                                 sizes="48px"
                                 className="object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = "none";
+                                }}
                               />
                             ) : (
                               <div className="flex size-full items-center justify-center text-slate-400">
@@ -900,11 +904,11 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               {formErrors.image && <p className="mt-1 text-xs text-rose-500">{formErrors.image}</p>}
 
               {/* Live Preview */}
-              {formData.image && formData.image.startsWith("http") && (
+              {sanitizeImageUrl(formData.image) && (
                 <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700">
                     <Image
-                      src={formData.image}
+                      src={sanitizeImageUrl(formData.image)!}
                       alt="ছবি প্রিভিউ"
                       fill
                       sizes="64px"
@@ -1126,15 +1130,18 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               {formErrors.image && <p className="mt-1 text-xs text-rose-500">{formErrors.image}</p>}
 
               {/* Live Preview */}
-              {formData.image && formData.image.startsWith("http") && (
+              {sanitizeImageUrl(formData.image) && (
                 <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700">
                     <Image
-                      src={formData.image}
+                      src={sanitizeImageUrl(formData.image)!}
                       alt="ছবি প্রিভিউ"
                       fill
                       sizes="64px"
                       className="object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
                     />
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -1208,13 +1215,16 @@ export default function ProductManagement({ initialProducts }: ProductManagement
           {activeProduct && (
             <div className="bg-card text-card-foreground">
               <div className="relative h-64 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                {activeProduct.image ? (
+                {sanitizeImageUrl(activeProduct.image) ? (
                   <Image
-                    src={activeProduct.image}
+                    src={sanitizeImageUrl(activeProduct.image)!}
                     alt={activeProduct.name}
                     fill
                     sizes="(max-width: 640px) 100vw, 448px"
                     className="object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center text-slate-400">

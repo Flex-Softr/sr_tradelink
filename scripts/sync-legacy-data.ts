@@ -42,6 +42,32 @@ function sanitizePhone(phoneRaw?: string | null): string | null {
 }
 
 /**
+ * Sanitize and normalize image URLs to prevent invalid protocol crashes in Next.js Image component.
+ */
+function sanitizeImageUrl(url?: string | null): string | null {
+  if (!url) return null;
+  let clean = url.trim();
+  if (!clean) return null;
+
+  // Fix common protocol typos
+  clean = clean.replace(/^hhttps:\/\//i, "https://");
+  clean = clean.replace(/^ttps:\/\//i, "https://");
+  clean = clean.replace(/^http:\/\//i, "https://");
+  clean = clean.replace(/^https\/\//i, "https://");
+  clean = clean.replace(/^http\/\//i, "https://");
+
+  if (clean.startsWith("//")) {
+    clean = `https:${clean}`;
+  }
+
+  if (clean.startsWith("/") || clean.startsWith("http://") || clean.startsWith("https://")) {
+    return clean;
+  }
+
+  return null;
+}
+
+/**
  * Parse price string or number to float
  */
 function parsePrice(priceRaw: string | number | undefined | null): number {
@@ -230,13 +256,15 @@ async function sync() {
   for (const fp of fixedProds) {
     const id = fp._id.toString();
     const priceNum = parsePrice(fp.price);
+    const cleanImg = sanitizeImageUrl(fp.image);
+
     const data = {
       name: fp.name.trim(),
       subtitle: fp.subtitle?.trim() || null,
       stock: 50,
       price: priceNum,
       description: `${fp.name}${fp.subtitle ? ` - ${fp.subtitle}` : ""}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
-      image: fp.image || null,
+      image: cleanImg,
       badge: fp.badge || "",
       unit: "KG" as const,
     };
@@ -349,6 +377,11 @@ async function sync() {
           ...customerData,
         },
       });
+
+      // Clear existing transactions for this customer to ensure clean, non-duplicated sync
+      await prisma.transaction.deleteMany({
+        where: { customer_id: custId },
+      });
     }
     clientsCount++;
 
@@ -356,7 +389,6 @@ async function sync() {
     if (client.transactions && Array.isArray(client.transactions)) {
       for (let idx = 0; idx < client.transactions.length; idx++) {
         const tx = client.transactions[idx];
-        const txRef = `legacy_client_tx:${tx._id || `${custId}_${idx}`}`;
         const kroy = Math.max(0, Number(tx.kroy) || 0);
         const joma = Math.max(0, Number(tx.joma) || 0);
         const baki = Math.max(0, Number(tx.baki) || 0);
@@ -386,37 +418,18 @@ async function sync() {
         }
 
         if (!isDryRun) {
-          const existingTx = await prisma.transaction.findFirst({
-            where: { reference: txRef },
+          await prisma.transaction.create({
+            data: {
+              customer_id: custId,
+              type,
+              amount,
+              paid_amount,
+              due_amount,
+              description: desc,
+              reference: null,
+              date: isNaN(txDate.getTime()) ? new Date() : txDate,
+            },
           });
-
-          if (existingTx) {
-            await prisma.transaction.update({
-              where: { id: existingTx.id },
-              data: {
-                customer_id: custId,
-                type,
-                amount,
-                paid_amount,
-                due_amount,
-                description: desc,
-                date: isNaN(txDate.getTime()) ? new Date() : txDate,
-              },
-            });
-          } else {
-            await prisma.transaction.create({
-              data: {
-                customer_id: custId,
-                type,
-                amount,
-                paid_amount,
-                due_amount,
-                description: desc,
-                reference: txRef,
-                date: isNaN(txDate.getTime()) ? new Date() : txDate,
-              },
-            });
-          }
         }
         clientTxCount++;
       }
@@ -469,13 +482,17 @@ async function sync() {
           ...partyData,
         },
       });
+
+      // Clear existing transactions for this party
+      await prisma.transaction.deleteMany({
+        where: { customer_id: partyId },
+      });
     }
     partyCount++;
 
     if (party.transactions && Array.isArray(party.transactions)) {
       for (let idx = 0; idx < party.transactions.length; idx++) {
         const tx = party.transactions[idx];
-        const txRef = `legacy_party_tx:${tx._id || `${partyId}_${idx}`}`;
         const kroy = Math.max(0, Number(tx.kroy) || 0);
         const joma = Math.max(0, Number(tx.joma) || 0);
         const desc = (tx.biboron || tx.description || "").trim() || null;
@@ -499,37 +516,18 @@ async function sync() {
         }
 
         if (!isDryRun) {
-          const existingTx = await prisma.transaction.findFirst({
-            where: { reference: txRef },
+          await prisma.transaction.create({
+            data: {
+              customer_id: partyId,
+              type,
+              amount,
+              paid_amount,
+              due_amount,
+              description: desc,
+              reference: null,
+              date: isNaN(txDate.getTime()) ? new Date() : txDate,
+            },
           });
-
-          if (existingTx) {
-            await prisma.transaction.update({
-              where: { id: existingTx.id },
-              data: {
-                customer_id: partyId,
-                type,
-                amount,
-                paid_amount,
-                due_amount,
-                description: desc,
-                date: isNaN(txDate.getTime()) ? new Date() : txDate,
-              },
-            });
-          } else {
-            await prisma.transaction.create({
-              data: {
-                customer_id: partyId,
-                type,
-                amount,
-                paid_amount,
-                due_amount,
-                description: desc,
-                reference: txRef,
-                date: isNaN(txDate.getTime()) ? new Date() : txDate,
-              },
-            });
-          }
         }
         partyTxCount++;
       }
@@ -549,8 +547,7 @@ async function sync() {
 
   let dokanTxSynced = 0;
   if (dokanTxs.length > 0) {
-    // Dedicated account for shop ledger
-    const dokanAccountId = "6a0000000000000000d00001"; // fixed 24-char ObjectId
+    const dokanAccountId = "6a0000000000000000d00001";
     const dokanAccountData = {
       name: "দোকান ক্রয় ও সরবরাহকারী হিসাব (Shop & Suppliers)",
       address: "ঝাড়বাড়ী বাজার, প্রধান কার্যালয়",
@@ -567,10 +564,13 @@ async function sync() {
           ...dokanAccountData,
         },
       });
+
+      await prisma.transaction.deleteMany({
+        where: { customer_id: dokanAccountId },
+      });
     }
 
     for (const dtx of dokanTxs) {
-      const ref = `legacy_dokan_tx:${dtx._id.toString()}`;
       const motKroy = Math.max(0, Number(dtx.motKroy) || 0);
       const cashJoma = Math.max(0, Number(dtx.cashJoma) || 0);
       const pawna = Math.max(0, Number(dtx.pawna) || Math.max(0, motKroy - cashJoma));
@@ -590,37 +590,18 @@ async function sync() {
       }
 
       if (!isDryRun) {
-        const existingTx = await prisma.transaction.findFirst({
-          where: { reference: ref },
+        await prisma.transaction.create({
+          data: {
+            customer_id: dokanAccountId,
+            type,
+            amount,
+            paid_amount,
+            due_amount,
+            description: desc,
+            reference: null,
+            date: isNaN(txDate.getTime()) ? new Date() : txDate,
+          },
         });
-
-        if (existingTx) {
-          await prisma.transaction.update({
-            where: { id: existingTx.id },
-            data: {
-              customer_id: dokanAccountId,
-              type,
-              amount,
-              paid_amount,
-              due_amount,
-              description: desc,
-              date: isNaN(txDate.getTime()) ? new Date() : txDate,
-            },
-          });
-        } else {
-          await prisma.transaction.create({
-            data: {
-              customer_id: dokanAccountId,
-              type,
-              amount,
-              paid_amount,
-              due_amount,
-              description: desc,
-              reference: ref,
-              date: isNaN(txDate.getTime()) ? new Date() : txDate,
-            },
-          });
-        }
       }
       dokanTxSynced++;
     }
@@ -656,10 +637,13 @@ async function sync() {
           ...dailyAccountData,
         },
       });
+
+      await prisma.transaction.deleteMany({
+        where: { customer_id: dailyAccountId },
+      });
     }
 
     for (const dtx of dailyTxs) {
-      const ref = `legacy_daily_tx:${dtx._id.toString()}`;
       const bikri = Math.max(0, Number(dtx.bikri) || 0);
       const baki = Math.max(0, Number(dtx.baki) || 0);
       const paid = Math.max(0, bikri - baki);
@@ -674,37 +658,18 @@ async function sync() {
       const txDate = dtx.date ? new Date(dtx.date) : new Date(dtx.createdAt || Date.now());
 
       if (!isDryRun) {
-        const existingTx = await prisma.transaction.findFirst({
-          where: { reference: ref },
+        await prisma.transaction.create({
+          data: {
+            customer_id: dailyAccountId,
+            type: "SALE",
+            amount: bikri,
+            paid_amount: paid,
+            due_amount: baki,
+            description: notes || "দৈনিক সারসংক্ষেপ লেনদেন",
+            reference: null,
+            date: isNaN(txDate.getTime()) ? new Date() : txDate,
+          },
         });
-
-        if (existingTx) {
-          await prisma.transaction.update({
-            where: { id: existingTx.id },
-            data: {
-              customer_id: dailyAccountId,
-              type: "SALE",
-              amount: bikri,
-              paid_amount: paid,
-              due_amount: baki,
-              description: notes || "দৈনিক সারসংক্ষেপ লেনদেন",
-              date: isNaN(txDate.getTime()) ? new Date() : txDate,
-            },
-          });
-        } else {
-          await prisma.transaction.create({
-            data: {
-              customer_id: dailyAccountId,
-              type: "SALE",
-              amount: bikri,
-              paid_amount: paid,
-              due_amount: baki,
-              description: notes || "দৈনিক সারসংক্ষেপ লেনদেন",
-              reference: ref,
-              date: isNaN(txDate.getTime()) ? new Date() : txDate,
-            },
-          });
-        }
       }
       dailyTxSynced++;
     }

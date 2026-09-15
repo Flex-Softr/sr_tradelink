@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Product, products as fallbackProducts } from "@/data/products";
+import { sanitizeImageUrl } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -38,13 +39,16 @@ function ProductCard({
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
       <div className="relative h-64 overflow-hidden bg-slate-100 dark:bg-slate-800">
-        {product.image ? (
+        {sanitizeImageUrl(product.image) ? (
           <Image
-            src={product.image}
+            src={sanitizeImageUrl(product.image)!}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="m-auto object-cover transition-transform duration-500 group-hover:scale-110"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = "none";
+            }}
           />
         ) : (
           <div className="flex size-full items-center justify-center text-slate-400">
@@ -190,13 +194,16 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
           {selectedProduct && (
             <div>
               <div className="relative h-72 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                {selectedProduct.image ? (
+                {sanitizeImageUrl(selectedProduct.image) ? (
                   <Image
-                    src={selectedProduct.image}
+                    src={sanitizeImageUrl(selectedProduct.image)!}
                     alt={selectedProduct.name}
                     fill
                     sizes="(max-width: 640px) 100vw, 448px"
                     className="object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center text-slate-400">
