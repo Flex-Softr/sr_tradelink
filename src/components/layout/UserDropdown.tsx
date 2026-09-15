@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { RiDashboardLine, RiLogoutBoxRLine, RiShieldUserLine, RiUser3Line } from "@remixicon/react";
+import {
+  RiDashboardLine,
+  RiLockPasswordLine,
+  RiLogoutBoxRLine,
+  RiShieldUserLine,
+  RiUser3Line,
+} from "@remixicon/react";
 import { signOut } from "next-auth/react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -116,6 +122,16 @@ export default function UserDropdown({ user }: UserDropdownProps) {
             >
               <RiDashboardLine className="size-4 text-slate-500 dark:text-slate-400" />
               <span>ড্যাশবোর্ড</span>
+            </Link>
+
+            <Link
+              href="/dashboard/account"
+              onClick={() => setIsOpen(false)}
+              role="menuitem"
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <RiLockPasswordLine className="size-4 text-slate-500 dark:text-slate-400" />
+              <span>অ্যাকাউন্ট ও পাসওয়ার্ড</span>
             </Link>
 
             <Link
