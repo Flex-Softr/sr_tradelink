@@ -624,7 +624,7 @@ export default function CustomerDetailsView({
 
       {/* Customer Header Card */}
       <Card className="border-border/60 overflow-hidden shadow-sm">
-        <div className="bg-gradient-to-r from-green-700 to-emerald-800 p-6 text-white">
+        <div className="bg-linear-to-r from-green-700 to-emerald-800 p-6 text-white">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Avatar size="lg" className="size-16 shadow-md ring-4 ring-white/20">
