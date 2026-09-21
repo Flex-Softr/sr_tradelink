@@ -282,42 +282,63 @@ async function sync() {
     productsSynced++;
   }
 
-  // 1b. Sync Custom ProductsDB (e.g., Medicine, Putin, DRB)
+  // 1b. Sync Custom ProductsDB (e.g., Medicine, Sorisa Khoil, Fish Feed) with Product Transactions
   for (const cp of customProds) {
     const name = cp.name.trim();
     const price = parsePrice(cp.pricePerKg);
-    const existing = isDryRun
-      ? null
-      : await prisma.product.findFirst({
-          where: { name: { equals: name, mode: "insensitive" } },
-        });
+    const id = cp._id.toString();
 
-    if (!existing) {
-      const id = cp._id.toString();
-      if (!isDryRun) {
-        await prisma.product.upsert({
-          where: { id },
-          update: {
-            name,
-            price,
-            stock: 50,
-            unit: "KG",
-            description: `${name}। উচ্চমানের গবাদি পশু খাদ্য ও ঔষধ।`,
-          },
-          create: {
-            id,
-            name,
-            price,
-            stock: 50,
-            unit: "KG",
-            description: `${name}। উচ্চমানের গবাদি পশু খাদ্য ও ঔষধ।`,
-          },
-        });
+    if (!isDryRun) {
+      await prisma.product.upsert({
+        where: { id },
+        update: {
+          name,
+          price,
+          unit: "KG",
+        },
+        create: {
+          id,
+          name,
+          price,
+          stock: 50,
+          unit: "KG",
+          description: `${name}। উচ্চমানের গবাদি পশু খাদ্য ও ঔষধ।`,
+        },
+      });
+
+      // Clear existing product transactions for clean re-sync
+      await prisma.productTransaction.deleteMany({
+        where: { product_id: id },
+      });
+    }
+
+    productsSynced++;
+
+    // Sync legacy product stock transactions (purchase rate & daily sale weight/price)
+    if (cp.transactions && Array.isArray(cp.transactions)) {
+      for (const tx of cp.transactions) {
+        const txDate = tx.date ? new Date(tx.date) : new Date();
+        const kroyweight = Math.max(0, Number(tx.kroyweight) || 0);
+        const kroyprice = Math.max(0, Number(tx.kroyprice) || 0);
+        const dailysaleweight = Math.max(0, Number(tx.dailysaleweight) || 0);
+        const dailysaleprice = Math.max(0, Number(tx.dailysaleprice) || 0);
+
+        if (!isDryRun) {
+          await prisma.productTransaction.create({
+            data: {
+              product_id: id,
+              date: isNaN(txDate.getTime()) ? new Date() : txDate,
+              kroyweight,
+              kroyprice,
+              dailysaleweight,
+              dailysaleprice,
+            },
+          });
+        }
       }
-      productsSynced++;
     }
   }
-  console.log(`✅ Products processed: ${productsSynced}`);
+  console.log(`✅ Products & Stock Ledger Transactions processed: ${productsSynced}`);
 
   // ----------------------------------------------------
   // SYNC CLIENTS & THEIR TRANSACTIONS
