@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="bn"
+      data-scroll-behavior="smooth"
       className={cn(
         "h-full",
         "antialiased",
