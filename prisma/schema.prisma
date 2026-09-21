@@ -26,19 +26,36 @@ enum ProductUnit {
 }
 
 model Product {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   subtitle    String?
-  stock       Float?       @default(0.0)
-  price       Float?       @default(0.0)
+  stock       Float?               @default(0.0)
+  price       Float?               @default(0.0)
   description String?
   image       String?
-  badge       String?      @default("")
-  unit        ProductUnit? @default(KG)
-  created_at  DateTime     @default(now()) @map("created_at")
-  updated_at  DateTime     @updatedAt @map("updated_at")
+  badge       String?              @default("")
+  unit        ProductUnit?         @default(KG)
+  transactions ProductTransaction[]
+  created_at  DateTime             @default(now()) @map("created_at")
+  updated_at  DateTime             @updatedAt @map("updated_at")
 
   @@map("products")
+}
+
+model ProductTransaction {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  product_id      String   @db.ObjectId @map("product_id")
+  product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  date            DateTime @default(now())
+  kroyweight      Float    @default(0.0)
+  kroyprice       Float    @default(0.0)
+  dailysaleweight Float    @default(0.0)
+  dailysaleprice  Float    @default(0.0)
+  created_at      DateTime @default(now()) @map("created_at")
+  updated_at      DateTime @updatedAt @map("updated_at")
+
+  @@index([product_id])
+  @@map("product_transactions")
 }
 
 enum CustomerType {
