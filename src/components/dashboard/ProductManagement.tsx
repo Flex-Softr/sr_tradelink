@@ -14,6 +14,7 @@ import {
   RiEditLine,
   RiErrorWarningLine,
   RiEyeLine,
+  RiFileTextLine,
   RiFilterLine,
   RiImageLine,
   RiLoader4Line,
@@ -656,15 +657,25 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                       {/* Action buttons */}
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Details */}
+                          <Link
+                            href={`/dashboard/products/${item.id}`}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            title="বিবরণ ও স্টক খতিয়ান"
+                          >
+                            <RiEyeLine className="size-4" />
+                            <span className="sr-only">বিবরণ</span>
+                          </Link>
+
                           {/* Preview */}
                           <Button
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => openPreviewDialog(item)}
-                            title="বিস্তারিত দেখুন"
+                            title="দ্রুত প্রিভিউ"
                             className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           >
-                            <RiEyeLine className="size-4" />
+                            <RiFileTextLine className="size-4" />
                             <span className="sr-only">প্রিভিউ</span>
                           </Button>
 

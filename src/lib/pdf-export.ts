@@ -1770,3 +1770,271 @@ export async function exportSalesReportPDF(options: {
     await downloadPdfFromHtml({ html, fileName });
   }
 }
+
+/**
+ * Generate HTML template for Monthly Product Profit Report PDF
+ */
+export function generateMonthlyProductProfitHTML(options: {
+  products: Array<{
+    id: string;
+    name: string;
+    saleWeight: number;
+    salePrice: number;
+    buyRate: number;
+    profit: number;
+  }>;
+  selectedMonth: string;
+}): string {
+  const { products, selectedMonth } = options;
+  const now = new Date();
+  const printTimestamp = formatDateTimeStr(now);
+
+  const totalProfit = products.reduce((acc, p) => acc + (p.profit || 0), 0);
+  const reportId = `PRFT-${selectedMonth.replace("-", "")}`;
+
+  let rowsHtml = "";
+  if (products.length === 0) {
+    rowsHtml = `
+      <tr>
+        <td colspan="6" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+          কোনো পণ্যের বিবরণী পাওয়া যায়নি।
+        </td>
+      </tr>
+    `;
+  } else {
+    products.forEach((p, idx) => {
+      const isEven = idx % 2 === 0;
+      const profitColor = p.profit >= 0 ? "#047857" : "#b91c1c";
+      rowsHtml += `
+        <tr style="background-color: ${isEven ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 7px 8px; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
+          <td style="padding: 7px 8px; font-weight: 700; color: #0f172a; font-size: 11px;">${p.name}</td>
+          <td style="padding: 7px 8px; text-align: center; font-size: 11px; color: #334155;">${p.saleWeight} kg</td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11px; color: #1d4ed8; font-weight: 600;">৳ ${formatMoney(p.salePrice)}</td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11px; color: #475569;">৳ ${formatMoney(p.buyRate)}/kg</td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 800; color: ${profitColor};">
+            ৳ ${formatMoney(p.profit)}
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>মাসিক মালের লাভ-ক্ষতি রিপোর্ট - ${selectedMonth} | SR Tradelink</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Bengali', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 16px 20px;
+      font-size: 11px;
+      line-height: 1.35;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 12px;
+      border-bottom: 2.5px solid #059669;
+    }
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #059669;
+    }
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: #065f46;
+    }
+    .brand-text .sub {
+      font-size: 12px;
+      font-weight: 700;
+      color: #047857;
+      text-transform: uppercase;
+    }
+    .title-strip {
+      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 12px 0 14px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title-strip h2 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #065f46;
+    }
+    .table-container {
+      margin-bottom: 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .ledger-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+    }
+    .ledger-table thead {
+      background-color: #065f46;
+      color: #ffffff;
+    }
+    .ledger-table thead th {
+      padding: 7px 8px;
+      font-weight: 700;
+    }
+    .ledger-table tfoot {
+      background-color: #f1f5f9;
+      border-top: 2px solid #059669;
+      font-weight: 800;
+    }
+    .ledger-table tfoot td {
+      padding: 8px 8px;
+      font-size: 11.5px;
+    }
+    .summary-card {
+      background: ${totalProfit >= 0 ? "#ecfdf5" : "#fff1f2"};
+      border: 1px solid ${totalProfit >= 0 ? "#a7f3d0" : "#fecdd3"};
+      padding: 12px;
+      border-radius: 6px;
+      text-align: right;
+      font-size: 14px;
+      font-weight: 800;
+      color: ${totalProfit >= 0 ? "#047857" : "#b91c1c"};
+      margin-bottom: 16px;
+    }
+    .system-footer {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div style="background: #ffffff; width: 100%; max-width: 794px; margin: 0 auto;">
+    <div class="header">
+      <div class="brand-left">
+        <img class="brand-logo" src="${COMPANY_INFO.logoBase64}" alt="SR Tradelink Logo" />
+        <div class="brand-text">
+          <h1>${COMPANY_INFO.nameBn}</h1>
+          <div class="sub">${COMPANY_INFO.nameEn}</div>
+        </div>
+      </div>
+      <div style="text-align: right; font-size: 10px; color: #334155;">
+        <div>📍 ${COMPANY_INFO.address}</div>
+        <div>📞 ${COMPANY_INFO.phone}</div>
+      </div>
+    </div>
+
+    <div class="title-strip">
+      <div>
+        <h2>মাসিক মালের লাভ-ক্ষতি ও স্টক হিসাব</h2>
+        <div style="font-size: 10px; color: #047857;">MONTHLY PRODUCT PROFIT & LOSS REPORT</div>
+      </div>
+      <div style="text-align: right; font-size: 10px; color: #334155;">
+        <div>হিসাবের মাস: <strong>${selectedMonth}</strong></div>
+        <div>প্রিন্ট সময়: <strong>${printTimestamp}</strong></div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th style="width: 35px; text-align: center;">ক্র.</th>
+            <th style="text-align: left;">পণ্যের নাম</th>
+            <th style="width: 100px; text-align: center;">বিক্রয় ওজন</th>
+            <th style="width: 110px; text-align: right;">বিক্রয় মূল্য (৳)</th>
+            <th style="width: 110px; text-align: right;">ক্রয় দর (৳/kg)</th>
+            <th style="width: 120px; text-align: right;">মুনাফা / ক্ষতি (৳)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" style="text-align: right; color: #065f46;">সর্বমোট লভ্যাংশ (TOTAL PROFIT/LOSS):</td>
+            <td style="text-align: right; color: ${totalProfit >= 0 ? "#047857" : "#b91c1c"};">
+              ৳ ${formatMoney(totalProfit)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="summary-card">
+      ${totalProfit >= 0 ? `সর্বমোট নিট লাভ: ৳ ${formatMoney(totalProfit)}` : `সর্বমোট নিট ক্ষতি: ৳ ${formatMoney(Math.abs(totalProfit))}`}
+    </div>
+
+    <div class="system-footer">
+      <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক পণ্য অডিট • আইডি: ${reportId}</div>
+      <div>পৃষ্ঠা ১ / ১</div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Export Monthly Product Profit PDF
+ */
+export async function exportMonthlyProductProfitPDF(options: {
+  products: Array<{
+    id: string;
+    name: string;
+    saleWeight: number;
+    salePrice: number;
+    buyRate: number;
+    profit: number;
+  }>;
+  selectedMonth: string;
+  customFileName?: string;
+  mode?: "download" | "print";
+}): Promise<void> {
+  const { products, selectedMonth, customFileName, mode = "download" } = options;
+
+  const html = generateMonthlyProductProfitHTML({ products, selectedMonth });
+  const fileName = customFileName || `SR-Tradelink-Monthly-Profit-${selectedMonth}.pdf`;
+
+  if (mode === "print") {
+    await printHtmlContent(html);
+  } else {
+    await downloadPdfFromHtml({ html, fileName });
+  }
+}
