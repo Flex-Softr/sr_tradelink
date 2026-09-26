@@ -110,7 +110,25 @@ async function ensureSparseIndexes() {
         },
       ],
     });
-    console.log("✅ Configured partial unique indexes on customers collection.");
+
+    try {
+      await prisma.$runCommandRaw({ dropIndexes: "parties", index: "parties_phone_key" });
+    } catch {
+      // ignore
+    }
+
+    await prisma.$runCommandRaw({
+      createIndexes: "parties",
+      indexes: [
+        {
+          key: { phone: 1 },
+          name: "parties_phone_key",
+          unique: true,
+          partialFilterExpression: { phone: { $type: "string" } },
+        },
+      ],
+    });
+    console.log("✅ Configured partial unique indexes on customers and parties collections.");
   } catch (error) {
     console.warn("⚠️ Warning during index setup:", error);
   }
@@ -459,9 +477,9 @@ async function sync() {
   console.log(`✅ Clients synced: ${clientsCount}, Client Transactions: ${clientTxCount}`);
 
   // ----------------------------------------------------
-  // SYNC PARTYS & THEIR TRANSACTIONS
+  // SYNC PARTYS & THEIR TRANSACTIONS (Dedicated Party Module)
   // ----------------------------------------------------
-  console.log("\n🏢 [3/5] Syncing Partys (Wholesale Accounts) & Transactions...");
+  console.log("\n🏢 [3/5] Syncing Partys (Wholesale & Supplier Accounts) & Transactions...");
   const partys = (await legacyClient
     .db("partysdb")
     .collection("partys")
@@ -470,6 +488,14 @@ async function sync() {
 
   let partyCount = 0;
   let partyTxCount = 0;
+  const usedPartyPhoneNumbers = new Set<string>();
+
+  const existingParties = await prisma.party.findMany({
+    select: { id: true, phone: true },
+  });
+  for (const ep of existingParties) {
+    if (ep.phone) usedPartyPhoneNumbers.add(ep.phone);
+  }
 
   for (const party of partys) {
     const partyId = party._id.toString();
@@ -478,11 +504,11 @@ async function sync() {
 
     if (rawPhone) {
       if (
-        !usedPhoneNumbers.has(rawPhone) ||
-        existingCustomers.some((ec) => ec.id === partyId && ec.phone === rawPhone)
+        !usedPartyPhoneNumbers.has(rawPhone) ||
+        existingParties.some((ep) => ep.id === partyId && ep.phone === rawPhone)
       ) {
         finalPhone = rawPhone;
-        usedPhoneNumbers.add(rawPhone);
+        usedPartyPhoneNumbers.add(rawPhone);
       }
     }
 
@@ -490,12 +516,11 @@ async function sync() {
       name: party.name.trim(),
       phone: finalPhone,
       address: party.location?.trim() || null,
-      type: "WHOLESALE" as CustomerType,
-      is_vip: true,
+      notes: null,
     };
 
     if (!isDryRun) {
-      await prisma.customer.upsert({
+      await prisma.party.upsert({
         where: { id: partyId },
         update: partyData,
         create: {
@@ -505,8 +530,8 @@ async function sync() {
       });
 
       // Clear existing transactions for this party
-      await prisma.transaction.deleteMany({
-        where: { customer_id: partyId },
+      await prisma.partyTransaction.deleteMany({
+        where: { party_id: partyId },
       });
     }
     partyCount++;
@@ -519,34 +544,14 @@ async function sync() {
         const desc = (tx.biboron || tx.description || "").trim() || null;
         const txDate = tx.date ? new Date(tx.date) : new Date();
 
-        let type: TransactionType = "SALE";
-        let amount = kroy;
-        let paid_amount = joma;
-        let due_amount = Math.max(0, kroy - joma);
-
-        if (kroy > 0) {
-          type = "SALE";
-          amount = kroy;
-          paid_amount = joma;
-          due_amount = Math.max(0, kroy - joma);
-        } else if (joma > 0) {
-          type = "PAYMENT";
-          amount = joma;
-          paid_amount = joma;
-          due_amount = 0;
-        }
-
         if (!isDryRun) {
-          await prisma.transaction.create({
+          await prisma.partyTransaction.create({
             data: {
-              customer_id: partyId,
-              type,
-              amount,
-              paid_amount,
-              due_amount,
-              description: desc,
-              reference: null,
+              party_id: partyId,
               date: isNaN(txDate.getTime()) ? new Date() : txDate,
+              kroy,
+              joma,
+              description: desc,
             },
           });
         }
