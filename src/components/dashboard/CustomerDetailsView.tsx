@@ -1068,29 +1068,29 @@ export default function CustomerDetailsView({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">
+                  <tr className="whitespace-nowrap">
+                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       তারিখ
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       চালান / মেমো নং
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       ধরন
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       বিবরণ / নোট
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right">
+                    <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">
                       মোট টাকা
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right">
+                    <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">
                       পরিশোধ
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right">
+                    <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">
                       বকেয়া
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right">
+                    <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">
                       অ্যাকশন
                     </th>
                   </tr>

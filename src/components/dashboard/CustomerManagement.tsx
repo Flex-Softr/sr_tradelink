@@ -608,20 +608,20 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
             <div className="overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
               <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-                  <tr>
-                    <th scope="col" className="px-4 py-3.5">
+                  <tr className="whitespace-nowrap">
+                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                       গ্রাহকের নাম ও স্ট্যাটাস
                     </th>
-                    <th scope="col" className="px-4 py-3.5">
+                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                       গ্রাহকের ধরন
                     </th>
-                    <th scope="col" className="px-4 py-3.5">
+                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                       যোগাযোগ (ফোন / ইমেইল)
                     </th>
-                    <th scope="col" className="px-4 py-3.5">
+                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                       ঠিকানা
                     </th>
-                    <th scope="col" className="px-4 py-3.5 text-right">
+                    <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
                       অ্যাকশন
                     </th>
                   </tr>
