@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 
 import type { Customer, CustomerType } from "@/lib/customers";
+import type { Party, PartyTransaction, PartyTransactionSummary } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
   CustomerTransactionSummary,
@@ -459,5 +460,171 @@ export function exportCentralSalesReportToCSV({
           ? `_পর্যন্ত_${endDate}`
           : `_${today}`;
   const fileName = customFileName || `এসআর_ট্রেডলিংক_বিক্রয়_রিপোর্ট${dateSuffix}.csv`;
+  downloadCSV(csv, fileName);
+}
+
+/**
+ * Export parties list to Excel (.xlsx) sheet
+ */
+export function exportPartiesToExcel(parties: Party[], customFileName?: string) {
+  const data = parties.map((p, index) => ({
+    "ক্রমিক নং": index + 1,
+    "পার্টির নাম": p.name || "-",
+    "মোবাইল নম্বর": p.phone || "-",
+    ঠিকানা: p.address || "-",
+    "মোট ক্রয় (৳)": p.totalKroy ?? 0,
+    "মোট পরিশোধ / জমা (৳)": p.totalJoma ?? 0,
+    "বর্তমান পাওনা / ব্যালেন্স (৳)": p.totalPawna ?? 0,
+    "মোট লেনদেন সংখ্যা": p.transactionCount ?? 0,
+    মন্তব্য: p.notes || "-",
+    "নিবন্ধনের তারিখ": formatDate(p.created_at),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  worksheet["!cols"] = [
+    { wch: 10 }, // ক্রমিক
+    { wch: 25 }, // নাম
+    { wch: 18 }, // মোবাইল
+    { wch: 30 }, // ঠিকানা
+    { wch: 16 }, // ক্রয়
+    { wch: 20 }, // জমা
+    { wch: 24 }, // পাওনা
+    { wch: 18 }, // লেনদেন
+    { wch: 25 }, // মন্তব্য
+    { wch: 16 }, // তারিখ
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "পার্টি তালিকা");
+
+  const today = new Date().toISOString().split("T")[0];
+  const fileName = customFileName || `পার্টি_তালিকা_${today}.xlsx`;
+  downloadWorkbook(workbook, fileName);
+}
+
+/**
+ * Export parties list to CSV format with UTF-8 BOM
+ */
+export function exportPartiesToCSV(parties: Party[], customFileName?: string) {
+  const data = parties.map((p, index) => ({
+    "ক্রমিক নং": index + 1,
+    "পার্টির নাম": p.name || "-",
+    "মোবাইল নম্বর": p.phone || "-",
+    ঠিকানা: p.address || "-",
+    "মোট ক্রয় (৳)": p.totalKroy ?? 0,
+    "মোট পরিশোধ / জমা (৳)": p.totalJoma ?? 0,
+    "বর্তমান পাওনা / ব্যালেন্স (৳)": p.totalPawna ?? 0,
+    "মোট লেনদেন সংখ্যা": p.transactionCount ?? 0,
+    মন্তব্য: p.notes || "-",
+    "নিবন্ধনের তারিখ": formatDate(p.created_at),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+  const today = new Date().toISOString().split("T")[0];
+  const fileName = customFileName || `পার্টি_তালিকা_${today}.csv`;
+  downloadCSV(csv, fileName);
+}
+
+export interface ExportPartyTransactionsOptions {
+  party: Party;
+  transactions: PartyTransaction[];
+  summary: PartyTransactionSummary;
+  customFileName?: string;
+}
+
+/**
+ * Export party's transactions to Excel (.xlsx)
+ */
+export function exportPartyTransactionsToExcel({
+  party,
+  transactions,
+  summary,
+  customFileName,
+}: ExportPartyTransactionsOptions) {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Sheet 1: Transactions Table
+  const tableData = transactions.map((tx, idx) => ({
+    "ক্রমিক নং": idx + 1,
+    তারিখ: formatDate(tx.date),
+    "মোট ক্রয় দর (৳)": Number(tx.kroy) || 0,
+    "পরিশোধ / জমা (৳)": Number(tx.joma) || 0,
+    "ব্যালেন্স ব্যবধান (৳)": (Number(tx.kroy) || 0) - (Number(tx.joma) || 0),
+    বিবরণ: tx.description || "-",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(tableData);
+  worksheet["!cols"] = [
+    { wch: 10 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 35 },
+  ];
+
+  // Sheet 2: Party Financial Overview
+  const summaryData = [
+    { প্রোপার্টি: "পার্টির নাম", বিবরণ: party.name },
+    { প্রোপার্টি: "মোবাইল নম্বর", বিবরণ: party.phone || "প্রযোজ্য নয়" },
+    { প্রোপার্টি: "ঠিকানা", বিবরণ: party.address || "প্রযোজ্য নয়" },
+    { প্রোপার্টি: "বিশেষ নোট", বিবরণ: party.notes || "-" },
+    { প্রোপার্টি: "মোট ক্রয় মূল্য", বিবরণ: `৳ ${summary.totalKroy}` },
+    { প্রোপার্টি: "মোট পরিশোধ / জমা", বিবরণ: `৳ ${summary.totalJoma}` },
+    { প্রোপার্টি: "বর্তমান পাওনা / বকেয়া", বিবরণ: `৳ ${summary.totalPawna}` },
+    { প্রোপার্টি: "মোট লেনদেন সংখ্যা", বিবরণ: `${summary.totalTransactions} টি` },
+    { প্রোপার্টি: "সর্বশেষ লেনদেন", বিবরণ: formatDate(summary.lastTransactionDate) },
+    { প্রোপার্টি: "রিপোর্ট তৈরির তারিখ", বিবরণ: today },
+  ];
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 25 }, { wch: 40 }];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "লেনদেন হিসাব");
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "পার্টি ওভারভিউ");
+
+  const safePartyName = party.name.replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, "_");
+  const fileName = customFileName || `পার্টি_${safePartyName}_হিসাব_${today}.xlsx`;
+  downloadWorkbook(workbook, fileName);
+}
+
+/**
+ * Export party's transactions to CSV
+ */
+export function exportPartyTransactionsToCSV({
+  party,
+  transactions,
+  summary,
+  customFileName,
+}: ExportPartyTransactionsOptions) {
+  const data = transactions.map((tx, idx) => ({
+    "ক্রমিক নং": String(idx + 1),
+    তারিখ: formatDate(tx.date),
+    "মোট ক্রয় দর (৳)": Number(tx.kroy) || 0,
+    "পরিশোধ / জমা (৳)": Number(tx.joma) || 0,
+    "ব্যালেন্স ব্যবধান (৳)": (Number(tx.kroy) || 0) - (Number(tx.joma) || 0),
+    বিবরণ: tx.description || "-",
+  }));
+
+  // Append summary row
+  data.push({
+    "ক্রমিক নং": "সর্বমোট",
+    তারিখ: "-",
+    "মোট ক্রয় দর (৳)": summary.totalKroy,
+    "পরিশোধ / জমা (৳)": summary.totalJoma,
+    "ব্যালেন্স ব্যবধান (৳)": summary.totalPawna,
+    বিবরণ: `বর্তমান পাওনা: ৳ ${summary.totalPawna}`,
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+  const today = new Date().toISOString().split("T")[0];
+  const safePartyName = party.name.replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, "_");
+  const fileName = customFileName || `পার্টি_${safePartyName}_হিসাব_${today}.csv`;
   downloadCSV(csv, fileName);
 }

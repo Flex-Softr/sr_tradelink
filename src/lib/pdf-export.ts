@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 
 import { COMPANY_INFO } from "@/lib/company-info";
 import type { Customer, CustomerType } from "@/lib/customers";
+import type { Party, PartyStatementLedgerData } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
   Transaction,
@@ -2031,6 +2032,672 @@ export async function exportMonthlyProductProfitPDF(options: {
 
   const html = generateMonthlyProductProfitHTML({ products, selectedMonth });
   const fileName = customFileName || `SR-Tradelink-Monthly-Profit-${selectedMonth}.pdf`;
+
+  if (mode === "print") {
+    await printHtmlContent(html);
+  } else {
+    await downloadPdfFromHtml({ html, fileName });
+  }
+}
+
+/**
+ * Generate HTML template for Party Statement PDF
+ */
+export function generatePartyStatementHTML(options: {
+  party: Party;
+  ledger: PartyStatementLedgerData;
+}): string {
+  const { party, ledger } = options;
+  const now = new Date();
+  const printTimestamp = formatDateTimeStr(now);
+  const statementId = `PRT-${party.id.slice(-6).toUpperCase()}-${formatDateStr(now).replace(/-/g, "")}`;
+
+  let periodText = "সকল লেনদেন (সম্পূর্ণ রেকর্ড)";
+  if (ledger.startDate && ledger.endDate) {
+    periodText = `${ledger.startDate} হতে ${ledger.endDate}`;
+  } else if (ledger.startDate) {
+    periodText = `${ledger.startDate} হতে অদ্যাবধি`;
+  } else if (ledger.endDate) {
+    periodText = `প্রারম্ভ হতে ${ledger.endDate} পর্যন্ত`;
+  }
+
+  let rowsHtml = "";
+
+  // Opening Balance Row if date filter was applied
+  if (ledger.startDate) {
+    rowsHtml += `
+      <tr style="background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #cbd5e1;">
+        <td style="padding: 7px 8px; text-align: center; color: #64748b;">-</td>
+        <td style="padding: 7px 8px; white-space: nowrap;">${ledger.startDate}</td>
+        <td style="padding: 7px 8px; color: #475569;">পূর্ববর্তী সময়কালের অবশিষ্ট পাওনা (Balance B/F)</td>
+        <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
+        <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
+        <td style="padding: 7px 8px; text-align: right; font-weight: 700; color: #0f172a;">৳ ${formatMoney(ledger.openingBalance)}</td>
+      </tr>
+    `;
+  }
+
+  if (ledger.entries.length === 0) {
+    rowsHtml += `
+      <tr>
+        <td colspan="6" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+          নির্বাচিত সময়কালের মধ্যে কোনো লেনদেনের রেকর্ড পাওয়া যায়নি।
+        </td>
+      </tr>
+    `;
+  } else {
+    ledger.entries.forEach((entry, idx) => {
+      const isEven = idx % 2 === 0;
+      rowsHtml += `
+        <tr style="background-color: ${isEven ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 7px 8px; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
+          <td style="padding: 7px 8px; white-space: nowrap; font-size: 11px;">${formatDateStr(entry.date)}</td>
+          <td style="padding: 7px 8px; font-size: 11px; color: #334155; max-width: 250px; word-break: break-word;">
+            ${entry.description || "-"}
+          </td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 600; color: #1d4ed8;">
+            ${entry.kroy > 0 ? `৳ ${formatMoney(entry.kroy)}` : "-"}
+          </td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 600; color: #047857;">
+            ${entry.joma > 0 ? `৳ ${formatMoney(entry.joma)}` : "-"}
+          </td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 700; color: ${entry.runningBalance > 0 ? "#b91c1c" : "#0f172a"};">
+            ৳ ${formatMoney(entry.runningBalance)}
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>${party.name} - পার্টির লেনদেন হিসাব বিবরণী | SR Tradelink</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Bengali', 'SolaimanLipi', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 16px 20px;
+      font-size: 11px;
+      line-height: 1.35;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .statement-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2.5px solid #059669;
+      margin-bottom: 12px;
+    }
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1.5px solid #059669;
+      object-fit: cover;
+    }
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #065f46;
+      line-height: 1.2;
+    }
+    .english-name {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #047857;
+    }
+    .tagline {
+      font-size: 9px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .brand-right {
+      text-align: right;
+      font-size: 9px;
+      color: #475569;
+      line-height: 1.4;
+    }
+    .statement-title-strip {
+      background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .statement-title-strip h2 {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .statement-sub {
+      font-size: 9px;
+      opacity: 0.9;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .info-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #f8fafc;
+    }
+    .info-card-header {
+      font-size: 11px;
+      font-weight: 800;
+      color: #065f46;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .info-table {
+      width: 100%;
+      font-size: 10px;
+      border-collapse: collapse;
+    }
+    .info-table td {
+      padding: 2.5px 0;
+      vertical-align: top;
+    }
+    .info-label {
+      color: #64748b;
+      width: 85px;
+      font-weight: 500;
+    }
+    .info-val {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .summary-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .metric-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .metric-box.highlight {
+      background: #fef2f2;
+      border-color: #fecdd3;
+    }
+    .metric-box.highlight .metric-val {
+      color: #dc2626;
+    }
+    .metric-title {
+      font-size: 8.5px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .metric-val {
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 1px;
+    }
+    .table-container {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .ledger-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    .ledger-table thead {
+      background-color: #065f46;
+      color: #ffffff;
+    }
+    .ledger-table thead th {
+      padding: 6.5px 7px;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.3px;
+    }
+    .ledger-table tfoot {
+      background-color: #f1f5f9;
+      border-top: 2px solid #059669;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .ledger-table tfoot td {
+      padding: 7px 7px;
+      font-size: 10.5px;
+    }
+    .system-footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="party-statement-pdf-root" style="background: #ffffff; width: 100%; max-width: 794px; margin: 0 auto;">
+
+  <!-- Company Header -->
+  <div class="statement-header">
+    <div class="brand-left">
+      <img class="brand-logo" src="${COMPANY_INFO.logoBase64}" alt="SR Tradelink Logo" />
+      <div class="brand-text">
+        <h1>${COMPANY_INFO.nameBn}</h1>
+        <div class="english-name">${COMPANY_INFO.nameEn}</div>
+        <div class="tagline">${COMPANY_INFO.tagline}</div>
+      </div>
+    </div>
+    <div class="brand-right">
+      <div>📍 <strong>প্রধান কার্যালয়:</strong> ${COMPANY_INFO.address}</div>
+      <div>📞 <strong>মোবাইল:</strong> ${COMPANY_INFO.phone}</div>
+      <div>✉️ <strong>ইমেইল:</strong> ${COMPANY_INFO.email}</div>
+      <div>🕒 <strong>কাজের সময়:</strong> ${COMPANY_INFO.hours}</div>
+    </div>
+  </div>
+
+  <!-- Title Strip -->
+  <div class="statement-title-strip">
+    <div>
+      <h2>পার্টি খতিয়ান ও লেনদেন বিবরণী</h2>
+      <div class="statement-sub">PARTY FINANCIAL STATEMENT & LEDGER</div>
+    </div>
+    <div style="text-align: right; font-size: 9.5px;">
+      <div>সময়কাল: <strong>${periodText}</strong></div>
+      <div>বিবরণী আইডি: <strong>${statementId}</strong></div>
+    </div>
+  </div>
+
+  <!-- Two Column Info Grid -->
+  <div class="info-grid">
+    <!-- Left: Party Profile -->
+    <div class="info-card">
+      <div class="info-card-header">পার্টির পরিচিতি (Party Profile)</div>
+      <table class="info-table">
+        <tr>
+          <td class="info-label">পার্টির নাম:</td>
+          <td class="info-val" style="font-size: 12px; color: #065f46;"><strong>${party.name}</strong></td>
+        </tr>
+        <tr>
+          <td class="info-label">মোবাইল নম্বর:</td>
+          <td class="info-val">${party.phone || "প্রযোজ্য নয়"}</td>
+        </tr>
+        <tr>
+          <td class="info-label">ঠিকানা:</td>
+          <td class="info-val">${party.address || "প্রযোজ্য নয়"}</td>
+        </tr>
+        <tr>
+          <td class="info-label">মন্তব্য / নোট:</td>
+          <td class="info-val">${party.notes || "-"}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Right: Period Financial Summary -->
+    <div class="info-card">
+      <div class="info-card-header">আর্থিক হিসাব সারসংক্ষেপ (Statement Summary)</div>
+      <div class="summary-metrics">
+        <div class="metric-box">
+          <div class="metric-title">প্রারম্ভিক জের (Opening)</div>
+          <div class="metric-val">৳ ${formatMoney(ledger.openingBalance)}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">মোট ক্রয় মূল্য</div>
+          <div class="metric-val" style="color: #1d4ed8;">৳ ${formatMoney(ledger.totalPeriodKroy)}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">মোট জমা / পরিশোধ</div>
+          <div class="metric-val" style="color: #047857;">৳ ${formatMoney(ledger.totalPeriodJoma)}</div>
+        </div>
+        <div class="metric-box ${ledger.closingBalance > 0 ? "highlight" : ""}">
+          <div class="metric-title">সমাপনী পাওনা (Due)</div>
+          <div class="metric-val">৳ ${formatMoney(ledger.closingBalance)}</div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 9px; color: #64748b; text-align: right;">
+        মোট অন্তর্ভুক্ত লেনদেন: <strong>${ledger.transactionCount}</strong> টি
+      </div>
+    </div>
+  </div>
+
+  <!-- Transactions Table -->
+  <div class="table-container">
+    <table class="ledger-table">
+      <thead>
+        <tr>
+          <th style="width: 35px; text-align: center;">ক্র.</th>
+          <th style="width: 85px; text-align: left;">তারিখ</th>
+          <th style="text-align: left;">বিবরণ ও মন্তব্য</th>
+          <th style="width: 110px; text-align: right;">মোট ক্রয় দর (৳)</th>
+          <th style="width: 110px; text-align: right;">পরিশোধ / জমা (৳)</th>
+          <th style="width: 120px; text-align: right;">অবশিষ্ট পাওনা (৳)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align: right; font-weight: 700; color: #065f46;">
+            সর্বমোট হিসাব (PERIOD TOTALS):
+          </td>
+          <td style="text-align: right; color: #1d4ed8; font-weight: 800;">
+            ৳ ${formatMoney(ledger.totalPeriodKroy)}
+          </td>
+          <td style="text-align: right; color: #047857; font-weight: 800;">
+            ৳ ${formatMoney(ledger.totalPeriodJoma)}
+          </td>
+          <td style="text-align: right; color: ${ledger.closingBalance > 0 ? "#b91c1c" : "#0f172a"}; font-weight: 800;">
+            ৳ ${formatMoney(ledger.closingBalance)}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="system-footer">
+    <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক পার্টি মডিউল</div>
+    <div>পৃষ্ঠা ১ / ১</div>
+  </div>
+
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Export Party Statement PDF
+ */
+export async function exportPartyStatementPDF(options: {
+  party: Party;
+  ledger: PartyStatementLedgerData;
+  customFileName?: string;
+  mode?: "download" | "print";
+}): Promise<void> {
+  const { party, ledger, customFileName, mode = "download" } = options;
+  const html = generatePartyStatementHTML({ party, ledger });
+  const safePartyName = party.name.replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, "_");
+  const fileName = customFileName || `SR-Tradelink-Party-${safePartyName}-Statement.pdf`;
+
+  if (mode === "print") {
+    await printHtmlContent(html);
+  } else {
+    await downloadPdfFromHtml({ html, fileName });
+  }
+}
+
+/**
+ * Generate HTML template for Party List PDF
+ */
+export function generatePartyListHTML(parties: Party[]): string {
+  const now = new Date();
+  const printTimestamp = formatDateTimeStr(now);
+
+  let totalKroyAll = 0;
+  let totalJomaAll = 0;
+  let totalPawnaAll = 0;
+
+  for (const p of parties) {
+    totalKroyAll += p.totalKroy ?? 0;
+    totalJomaAll += p.totalJoma ?? 0;
+    totalPawnaAll += p.totalPawna ?? 0;
+  }
+
+  let rowsHtml = "";
+  if (parties.length === 0) {
+    rowsHtml = `
+      <tr>
+        <td colspan="7" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+          কোনো পার্টির তথ্য পাওয়া যায়নি।
+        </td>
+      </tr>
+    `;
+  } else {
+    parties.forEach((p, idx) => {
+      const isEven = idx % 2 === 0;
+      rowsHtml += `
+        <tr style="background-color: ${isEven ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 6.5px 7px; text-align: center; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 6.5px 7px; font-weight: 700; color: #065f46;">${p.name}</td>
+          <td style="padding: 6.5px 7px;">${p.phone || "-"}</td>
+          <td style="padding: 6.5px 7px;">${p.address || "-"}</td>
+          <td style="padding: 6.5px 7px; text-align: right; font-weight: 600; color: #1d4ed8;">৳ ${formatMoney(p.totalKroy ?? 0)}</td>
+          <td style="padding: 6.5px 7px; text-align: right; font-weight: 600; color: #047857;">৳ ${formatMoney(p.totalJoma ?? 0)}</td>
+          <td style="padding: 6.5px 7px; text-align: right; font-weight: 700; color: ${(p.totalPawna ?? 0) > 0 ? "#b91c1c" : "#0f172a"};">৳ ${formatMoney(p.totalPawna ?? 0)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>পার্টি তালিকা ও ব্যালেন্স অডিট | SR Tradelink</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Bengali', 'SolaimanLipi', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 16px 20px;
+      font-size: 11px;
+      line-height: 1.35;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2.5px solid #059669;
+      margin-bottom: 12px;
+    }
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1.5px solid #059669;
+      object-fit: cover;
+    }
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #065f46;
+      line-height: 1.2;
+    }
+    .brand-text .sub {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #047857;
+    }
+    .title-strip {
+      background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .title-strip h2 {
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .table-container {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .ledger-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    .ledger-table thead {
+      background-color: #065f46;
+      color: #ffffff;
+    }
+    .ledger-table thead th {
+      padding: 7px 8px;
+      font-weight: 700;
+    }
+    .ledger-table tfoot {
+      background-color: #f1f5f9;
+      border-top: 2px solid #059669;
+      font-weight: 800;
+    }
+    .ledger-table tfoot td {
+      padding: 8px 8px;
+      font-size: 11px;
+    }
+    .system-footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div style="background: #ffffff; width: 100%; max-width: 794px; margin: 0 auto;">
+    <div class="header">
+      <div class="brand-left">
+        <img class="brand-logo" src="${COMPANY_INFO.logoBase64}" alt="SR Tradelink Logo" />
+        <div class="brand-text">
+          <h1>${COMPANY_INFO.nameBn}</h1>
+          <div class="sub">${COMPANY_INFO.nameEn}</div>
+        </div>
+      </div>
+      <div style="text-align: right; font-size: 9.5px; color: #475569;">
+        <div>📍 ${COMPANY_INFO.address}</div>
+        <div>📞 ${COMPANY_INFO.phone}</div>
+      </div>
+    </div>
+
+    <div class="title-strip">
+      <div>
+        <h2>পার্টি তালিকা ও ব্যালেন্স রিপোর্ট</h2>
+        <div style="font-size: 9px; opacity: 0.9;">SR TRADELINK PARTY LIST & BALANCE AUDIT</div>
+      </div>
+      <div style="text-align: right; font-size: 9.5px;">
+        <div>মোট পার্টি: <strong>${parties.length}</strong> টি</div>
+        <div>প্রিন্ট সময়: <strong>${printTimestamp}</strong></div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">ক্র.</th>
+            <th style="text-align: left;">পার্টির নাম</th>
+            <th style="width: 95px; text-align: left;">মোবাইল</th>
+            <th style="width: 110px; text-align: left;">ঠিকানা</th>
+            <th style="width: 95px; text-align: right;">মোট ক্রয় (৳)</th>
+            <th style="width: 95px; text-align: right;">মোট জমা (৳)</th>
+            <th style="width: 105px; text-align: right;">বর্তমান পাওনা (৳)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align: right; color: #065f46;">সর্বমোট হিসাব (TOTALS):</td>
+            <td style="text-align: right; color: #1d4ed8;">৳ ${formatMoney(totalKroyAll)}</td>
+            <td style="text-align: right; color: #047857;">৳ ${formatMoney(totalJomaAll)}</td>
+            <td style="text-align: right; color: ${totalPawnaAll > 0 ? "#b91c1c" : "#0f172a"};">৳ ${formatMoney(totalPawnaAll)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="system-footer">
+      <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক</div>
+      <div>পৃষ্ঠা ১ / ১</div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Export Party List PDF
+ */
+export async function exportPartyListPDF(options: {
+  parties: Party[];
+  customFileName?: string;
+  mode?: "download" | "print";
+}): Promise<void> {
+  const { parties, customFileName, mode = "download" } = options;
+  const html = generatePartyListHTML(parties);
+  const today = formatDateStr(new Date());
+  const fileName = customFileName || `SR-Tradelink-Parties-List-${today}.pdf`;
 
   if (mode === "print") {
     await printHtmlContent(html);
