@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 
 import {
   RiBarChartBoxLine,
+  RiBuilding2Line,
   RiCloseLine,
   RiDashboardLine,
   RiGroupLine,
@@ -54,6 +55,12 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
       label: "গ্রাহক তালিকা",
       icon: RiGroupLine,
       active: pathname.startsWith("/dashboard/customers"),
+    },
+    {
+      href: "/dashboard/parties",
+      label: "পার্টি খাতা",
+      icon: RiBuilding2Line,
+      active: pathname.startsWith("/dashboard/parties"),
     },
     {
       href: "/dashboard/sales",

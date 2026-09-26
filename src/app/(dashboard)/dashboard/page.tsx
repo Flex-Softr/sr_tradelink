@@ -9,6 +9,7 @@ import LogoutButton from "@/components/dashboard/LogoutButton";
 import { Badge } from "@/components/ui/badge";
 import { authOptions } from "@/lib/auth";
 import { getCustomers } from "@/lib/customers";
+import { getParties } from "@/lib/parties";
 import { getProducts } from "@/lib/products";
 import { getUsers } from "@/lib/users";
 
@@ -25,9 +26,10 @@ export default async function DashboardPage() {
   }
 
   const user = session.user;
-  const [initialProducts, initialCustomers, usersResult] = await Promise.all([
+  const [initialProducts, initialCustomers, initialParties, usersResult] = await Promise.all([
     getProducts(),
     getCustomers(),
+    getParties(),
     getUsers({ limit: 1000 }),
   ]);
 
@@ -60,10 +62,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Dynamic Products, Customers & Users Management */}
+        {/* Dynamic Products, Customers, Parties & Users Management */}
         <DashboardTabs
           initialProducts={initialProducts}
           initialCustomers={initialCustomers}
+          initialParties={initialParties}
           initialUsers={usersResult.users}
         />
       </div>

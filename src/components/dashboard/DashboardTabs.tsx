@@ -9,6 +9,7 @@ import {
   RiArrowRightUpLine,
   RiBarChartBoxLine,
   RiBox3Line,
+  RiBuilding2Line,
   RiCheckDoubleLine,
   RiFileList3Line,
   RiGroupLine,
@@ -18,26 +19,30 @@ import {
 } from "@remixicon/react";
 
 import CustomerManagement from "@/components/dashboard/CustomerManagement";
+import PartyManagement from "@/components/dashboard/PartyManagement";
 import ProductManagement from "@/components/dashboard/ProductManagement";
 import SalesReportView from "@/components/dashboard/SalesReportView";
 import UserManagement from "@/components/dashboard/UserManagement";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Customer } from "@/lib/customers";
+import type { Party } from "@/lib/parties";
 import type { Product } from "@/lib/products";
 import type { SafeUser } from "@/lib/users";
 
 interface DashboardTabsProps {
   initialProducts: Product[];
   initialCustomers: Customer[];
+  initialParties: Party[];
   initialUsers: SafeUser[];
 }
 
-type TabType = "products" | "customers" | "users" | "sales";
+type TabType = "products" | "customers" | "parties" | "sales" | "users";
 
 function DashboardTabsContent({
   initialProducts,
   initialCustomers,
+  initialParties,
   initialUsers,
 }: DashboardTabsProps) {
   const searchParams = useSearchParams();
@@ -48,17 +53,20 @@ function DashboardTabsContent({
   const activeTab: TabType =
     tabParam === "customers" ||
     tabParam === "products" ||
+    tabParam === "parties" ||
     tabParam === "users" ||
     tabParam === "sales"
       ? tabParam
       : selectedTab;
 
-  // Listen for hash changes (e.g. from navbar clicks #customers, #products, #users, #sales)
+  // Listen for hash changes (e.g. from navbar clicks #customers, #products, #parties, #users, #sales)
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash.toLowerCase();
       if (hash.includes("customer")) {
         setSelectedTab("customers");
+      } else if (hash.includes("party") || hash.includes("partie")) {
+        setSelectedTab("parties");
       } else if (hash.includes("product")) {
         setSelectedTab("products");
       } else if (hash.includes("user")) {
@@ -85,7 +93,7 @@ function DashboardTabsContent({
   const totalProducts = initialProducts.length;
   const inStockProducts = initialProducts.filter((p) => (p.stock ?? 0) > 0).length;
   const totalCustomers = initialCustomers.length;
-  const vipCustomers = initialCustomers.filter((c) => c.is_vip).length;
+  const totalParties = initialParties.length;
   const totalUsers = initialUsers.length;
   const adminUsers = initialUsers.filter((u) => u.role.toLowerCase() === "admin").length;
 
@@ -148,13 +156,50 @@ function DashboardTabsContent({
                   {totalCustomers}
                 </h3>
                 <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                  নথিভুক্ত ক্রেতা
+                  খুচরা ও খামারি
                 </p>
               </div>
             </div>
             <Link
               href="/dashboard/customers"
               title="গ্রাহক পৃষ্ঠায় যান"
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RiArrowRightUpLine className="size-4" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Total Parties */}
+        <Card
+          onClick={() => handleTabChange("parties")}
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+            activeTab === "parties"
+              ? "border-purple-500/50 bg-purple-50/40 ring-2 ring-purple-500/20 dark:bg-purple-950/20 dark:ring-purple-500/30"
+              : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
+          }`}
+        >
+          <CardContent className="flex items-center justify-between p-4 sm:p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                <RiBuilding2Line className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  পার্টি খাতা
+                </p>
+                <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+                  {totalParties}
+                </h3>
+                <p className="text-[11px] font-medium text-purple-700 dark:text-purple-400">
+                  মহাজন ও সাপ্লায়ার
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/parties"
+              title="পার্টি পৃষ্ঠায় যান"
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
@@ -205,13 +250,13 @@ function DashboardTabsContent({
           onClick={() => handleTabChange("users")}
           className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
             activeTab === "users"
-              ? "border-purple-500/50 bg-purple-50/40 ring-2 ring-purple-500/20 dark:bg-purple-950/20 dark:ring-purple-500/30"
+              ? "border-indigo-500/50 bg-indigo-50/40 ring-2 ring-indigo-500/20 dark:bg-indigo-950/20 dark:ring-indigo-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
           <CardContent className="flex items-center justify-between p-4 sm:p-5">
             <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
                 <RiShieldUserLine className="size-5" />
               </div>
               <div className="min-w-0">
@@ -221,7 +266,7 @@ function DashboardTabsContent({
                 <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
                   {totalUsers}
                 </h3>
-                <p className="text-[11px] font-medium text-purple-700 dark:text-purple-400">
+                <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-400">
                   অ্যাডমিন: {adminUsers} জন
                 </p>
               </div>
@@ -234,29 +279,6 @@ function DashboardTabsContent({
             >
               <RiArrowRightUpLine className="size-4" />
             </Link>
-          </CardContent>
-        </Card>
-
-        {/* VIP Customers */}
-        <Card
-          onClick={() => handleTabChange("customers")}
-          className="border-border/60 cursor-pointer border transition-all duration-200 hover:border-amber-400/60 hover:shadow-md"
-        >
-          <CardContent className="flex items-center gap-3.5 p-4 sm:p-5">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-              <RiVipCrownLine className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                ভিআইপি গ্রাহক
-              </p>
-              <h3 className="text-xl font-bold tracking-tight text-amber-700 sm:text-2xl dark:text-amber-400">
-                {vipCustomers}
-              </h3>
-              <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                বিশেষ অগ্রাধিকার
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -312,6 +334,29 @@ function DashboardTabsContent({
 
           <button
             type="button"
+            onClick={() => handleTabChange("parties")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
+              activeTab === "parties"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <RiBuilding2Line className="size-4 text-purple-600 dark:text-purple-400" />
+            <span>পার্টি খাতা</span>
+            <Badge
+              variant={activeTab === "parties" ? "default" : "secondary"}
+              className={`ml-1 px-2 py-0.5 text-xs ${
+                activeTab === "parties"
+                  ? "bg-purple-600 text-white hover:bg-purple-600"
+                  : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+              }`}
+            >
+              {totalParties}
+            </Badge>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleTabChange("sales")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
               activeTab === "sales"
@@ -342,13 +387,13 @@ function DashboardTabsContent({
                 : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
-            <RiShieldUserLine className="size-4 text-purple-600 dark:text-purple-400" />
+            <RiShieldUserLine className="size-4 text-indigo-600 dark:text-indigo-400" />
             <span>ব্যবহারকারী</span>
             <Badge
               variant={activeTab === "users" ? "default" : "secondary"}
               className={`ml-1 px-2 py-0.5 text-xs ${
                 activeTab === "users"
-                  ? "bg-purple-600 text-white hover:bg-purple-600"
+                  ? "bg-indigo-600 text-white hover:bg-indigo-600"
                   : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
               }`}
             >
@@ -383,6 +428,15 @@ function DashboardTabsContent({
             </Link>
           )}
 
+          {activeTab === "parties" && (
+            <Link
+              href="/dashboard/parties"
+              className="inline-flex items-center gap-1 font-medium text-purple-700 hover:underline dark:text-purple-400"
+            >
+              পূর্ণাঙ্গ পার্টি পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
+            </Link>
+          )}
+
           {activeTab === "sales" && (
             <Link
               href="/dashboard/sales"
@@ -395,7 +449,7 @@ function DashboardTabsContent({
           {activeTab === "users" && (
             <Link
               href="/dashboard/users"
-              className="inline-flex items-center gap-1 font-medium text-purple-700 hover:underline dark:text-purple-400"
+              className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline dark:text-indigo-400"
             >
               পূর্ণাঙ্গ ব্যবহারকারী পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -414,6 +468,12 @@ function DashboardTabsContent({
         {activeTab === "customers" && (
           <div className="animate-in fade-in duration-200">
             <CustomerManagement initialCustomers={initialCustomers} />
+          </div>
+        )}
+
+        {activeTab === "parties" && (
+          <div className="animate-in fade-in duration-200">
+            <PartyManagement initialParties={initialParties} />
           </div>
         )}
 
