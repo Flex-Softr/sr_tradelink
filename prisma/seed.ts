@@ -114,6 +114,75 @@ async function main() {
     console.log(`ℹ️  Customers collection already has ${customerCount} records.`);
   }
 
+  console.log("🌱 Checking parties...");
+  const partyCount = await prisma.party.count();
+  if (partyCount === 0) {
+    console.log("🌱 Seeding initial parties...");
+    const sampleParties = [
+      {
+        name: "মেসার্স সততা ট্রেডার্স",
+        phone: "01715998877",
+        address: "বীরগঞ্জ বাজার, দিনাজপুর",
+        notes: "ফিড ও ভুষি পাইকারি মহাজন",
+        transactions: {
+          create: [
+            {
+              date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+              kroy: 50000,
+              joma: 30000,
+              description: "লেয়ার ফিড ৫০ বস্তা চালান",
+            },
+            {
+              date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+              kroy: 0,
+              joma: 15000,
+              description: "বকেয়া পরিশোধ জমা",
+            },
+          ],
+        },
+      },
+      {
+        name: "আনোয়ার ট্রেডিং কর্পোরেশন",
+        phone: "01819665544",
+        address: "ঝাড়বাড়ী হাট, ঠাকুরগাঁও",
+        notes: "সরিষা খৈল ও কুড়া সরবরাহকারী",
+        transactions: {
+          create: [
+            {
+              date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+              kroy: 85000,
+              joma: 50000,
+              description: "সরিষা খৈল ২০ বস্তা ও গম কুড়া",
+            },
+          ],
+        },
+      },
+      {
+        name: "প্রিমিয়ার এগ্রো সাপ্লাইয়ার্স",
+        phone: "01912334455",
+        address: "রানীশংকৈল, ঠাকুরগাঁও",
+        notes: "পোল্ট্রি মেডিসিন ও খাদ্য সরবরাহ",
+        transactions: {
+          create: [
+            {
+              date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+              kroy: 42000,
+              joma: 42000,
+              description: "ক্যাটল মিনারেল ও প্রিমিক্স (নগদ পরিশোধ)",
+            },
+          ],
+        },
+      },
+    ];
+
+    for (const p of sampleParties) {
+      await prisma.party.create({ data: p });
+    }
+    console.log(`✅ ${sampleParties.length} initial parties seeded!`);
+  } else {
+    console.log(`ℹ️  Parties collection already has ${partyCount} records.`);
+  }
+
   console.log("🎉 Seeding completed successfully!");
 }
 

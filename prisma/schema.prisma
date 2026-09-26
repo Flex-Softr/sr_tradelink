@@ -102,3 +102,32 @@ model Transaction {
   @@index([customer_id])
   @@map("transactions")
 }
+
+model Party {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  phone        String?            @unique
+  address      String?
+  notes        String?
+  transactions PartyTransaction[]
+  created_at   DateTime           @default(now()) @map("created_at")
+  updated_at   DateTime           @updatedAt @map("updated_at")
+
+  @@map("parties")
+}
+
+model PartyTransaction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  party_id    String   @db.ObjectId @map("party_id")
+  party       Party    @relation(fields: [party_id], references: [id], onDelete: Cascade)
+  date        DateTime @default(now())
+  kroy        Float    @default(0.0)
+  joma        Float    @default(0.0)
+  description String?
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+
+  @@index([party_id])
+  @@map("party_transactions")
+}
+
