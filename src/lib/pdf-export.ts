@@ -2,7 +2,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
 import { COMPANY_INFO } from "@/lib/company-info";
-import type { Customer, CustomerType } from "@/lib/customers";
+import type { Customer } from "@/lib/customers";
 import type { Party, PartyStatementLedgerData } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
@@ -26,18 +26,6 @@ export interface StatementLedgerData {
   transactionCount: number;
   startDate?: string;
   endDate?: string;
-}
-
-function getCustomerTypeLabel(type: CustomerType): string {
-  switch (type) {
-    case "WHOLESALE":
-      return "পাইকারি (Wholesale)";
-    case "BOTH":
-      return "খুচরা ও পাইকারি (Both)";
-    case "RETAIL":
-    default:
-      return "খুচরা (Retail)";
-  }
 }
 
 function getTxTypeLabel(type: TransactionType): string {
@@ -627,10 +615,6 @@ export function generateBankStatementHTML(options: {
           <td class="val" style="font-family: monospace;">${customer.id}</td>
         </tr>
         <tr>
-          <td class="label">হিসাবের ধরন:</td>
-          <td class="val">${getCustomerTypeLabel(customer.type)} ${customer.is_vip ? "(ভিআইপি গ্রাহক)" : ""}</td>
-        </tr>
-        <tr>
           <td class="label">মোবাইল নম্বর:</td>
           <td class="val">${customer.phone || "প্রদান করা হয়নি"}</td>
         </tr>
@@ -768,10 +752,6 @@ export function generateCustomerListHTML(options: {
   const now = new Date();
   const printTimestamp = formatDateTimeStr(now);
 
-  const wholesaleCount = customers.filter((c) => c.type === "WHOLESALE").length;
-  const retailCount = customers.filter((c) => c.type === "RETAIL").length;
-  const vipCount = customers.filter((c) => c.is_vip).length;
-
   let rowsHtml = "";
   if (customers.length === 0) {
     rowsHtml = `
@@ -789,13 +769,6 @@ export function generateCustomerListHTML(options: {
           <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 10px;">${idx + 1}</td>
           <td style="padding: 6px 8px; font-weight: 600; color: #0f172a; font-size: 10.5px;">${c.name || "-"}</td>
           <td style="padding: 6px 8px; font-size: 10.5px; color: #334155; font-family: monospace;">${c.phone || "-"}</td>
-          <td style="padding: 6px 8px; font-size: 10px; color: #64748b;">${c.email || "-"}</td>
-          <td style="padding: 6px 8px; font-size: 10px;">
-            <span style="display: inline-block; padding: 1.5px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
-              ${getCustomerTypeLabel(c.type)}
-            </span>
-            ${c.is_vip ? `<span style="margin-left: 3px; display: inline-block; padding: 1.5px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">VIP</span>` : ""}
-          </td>
           <td style="padding: 6px 8px; font-size: 10px; color: #334155; max-width: 180px; word-break: break-word;">${c.address || "-"}</td>
           <td style="padding: 6px 8px; font-size: 10px; color: #64748b; white-space: nowrap;">${formatDateStr(c.created_at)}</td>
         </tr>
@@ -985,18 +958,6 @@ export function generateCustomerListHTML(options: {
       <div class="num">${customers.length}</div>
       <div class="lbl">মোট গ্রাহক</div>
     </div>
-    <div class="summary-card">
-      <div class="num">${wholesaleCount}</div>
-      <div class="lbl">পাইকারি গ্রাহক</div>
-    </div>
-    <div class="summary-card">
-      <div class="num">${retailCount}</div>
-      <div class="lbl">খুচরা গ্রাহক</div>
-    </div>
-    <div class="summary-card">
-      <div class="num">${vipCount}</div>
-      <div class="lbl">ভিআইপি গ্রাহক</div>
-    </div>
   </div>
 
   <table class="cust-table">
@@ -1005,8 +966,6 @@ export function generateCustomerListHTML(options: {
         <th style="width: 32px; text-align: center;">ক্র.</th>
         <th>গ্রাহকের নাম</th>
         <th>মোবাইল নম্বর</th>
-        <th>ইমেইল</th>
-        <th>ধরণ</th>
         <th>ঠিকানা</th>
         <th>নিবন্ধনের তারিখ</th>
       </tr>
@@ -1346,9 +1305,6 @@ export function generateSalesReportHTML(options: {
       const refNo = tx.reference || tx.id.slice(-6).toUpperCase();
       const customerName = tx.customer?.name || "নামবিহীন গ্রাহক";
       const customerPhone = tx.customer?.phone || "-";
-      const customerType = tx.customer?.type
-        ? getCustomerTypeLabel(tx.customer.type as CustomerType)
-        : "-";
 
       rowsHtml += `
         <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? "background-color: #f8fafc;" : ""}">
@@ -1357,7 +1313,7 @@ export function generateSalesReportHTML(options: {
           <td style="padding: 6px 7px; font-family: monospace; font-size: 9.5px; color: #475569;">#${refNo}</td>
           <td style="padding: 6px 7px;">
             <div style="font-weight: 700; color: #0f172a; font-size: 10.5px;">${customerName}</div>
-            <div style="font-size: 9px; color: #64748b;">${customerPhone} • ${customerType}</div>
+            <div style="font-size: 9px; color: #64748b;">${customerPhone}</div>
           </td>
           <td style="padding: 6px 7px; text-align: center;">${typeBadge}</td>
           <td style="padding: 6px 7px; text-align: right; font-weight: 600; color: #0f172a;">৳ ${formatMoney(tx.amount || 0)}</td>
@@ -1775,7 +1731,7 @@ export async function exportSalesReportPDF(options: {
 /**
  * Generate HTML template for Monthly Product Profit Report PDF
  */
-export function generateMonthlyProductProfitHTML(options: {
+export function generateProductProfitHTML(options: {
   products: Array<{
     id: string;
     name: string;
@@ -1826,7 +1782,7 @@ export function generateMonthlyProductProfitHTML(options: {
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>মাসিক মালের লাভ-ক্ষতি রিপোর্ট - ${selectedMonth} | SR Tradelink</title>
+  <title>মালের লাভ-ক্ষতি রিপোর্ট - ${selectedMonth} | SR Tradelink</title>
   <style>
     @page {
       size: A4 portrait;
@@ -1963,11 +1919,11 @@ export function generateMonthlyProductProfitHTML(options: {
 
     <div class="title-strip">
       <div>
-        <h2>মাসিক মালের লাভ-ক্ষতি ও স্টক হিসাব</h2>
-        <div style="font-size: 10px; color: #047857;">MONTHLY PRODUCT PROFIT & LOSS REPORT</div>
+        <h2>মালের লাভ-ক্ষতি ও স্টক হিসাব</h2>
+        <div style="font-size: 10px; color: #047857;">PRODUCT PROFIT & LOSS REPORT</div>
       </div>
       <div style="text-align: right; font-size: 10px; color: #334155;">
-        <div>হিসাবের মাস: <strong>${selectedMonth}</strong></div>
+        <div>হিসাবের সময়: <strong>${selectedMonth}</strong></div>
         <div>প্রিন্ট সময়: <strong>${printTimestamp}</strong></div>
       </div>
     </div>
@@ -2015,7 +1971,7 @@ export function generateMonthlyProductProfitHTML(options: {
 /**
  * Export Monthly Product Profit PDF
  */
-export async function exportMonthlyProductProfitPDF(options: {
+export async function exportProductProfitPDF(options: {
   products: Array<{
     id: string;
     name: string;
@@ -2030,7 +1986,7 @@ export async function exportMonthlyProductProfitPDF(options: {
 }): Promise<void> {
   const { products, selectedMonth, customFileName, mode = "download" } = options;
 
-  const html = generateMonthlyProductProfitHTML({ products, selectedMonth });
+  const html = generateProductProfitHTML({ products, selectedMonth });
   const fileName = customFileName || `SR-Tradelink-Monthly-Profit-${selectedMonth}.pdf`;
 
   if (mode === "print") {

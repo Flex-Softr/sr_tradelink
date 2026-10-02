@@ -4,19 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { type CustomerType, createCustomer, getCustomers } from "@/lib/customers";
+import { createCustomer, getCustomers } from "@/lib/customers";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const type = (searchParams.get("type") as CustomerType | "all") || undefined;
-    const isVipParam = searchParams.get("is_vip");
-    const is_vip = isVipParam === "true" ? true : isVipParam === "false" ? false : undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const skip = searchParams.get("skip") ? parseInt(searchParams.get("skip")!, 10) : undefined;
 
-    const customers = await getCustomers({ search, type, is_vip, limit, skip });
+    const customers = await getCustomers({ search, limit, skip });
 
     return NextResponse.json({
       success: true,
@@ -47,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, phone, address, is_vip, type } = body;
+    const { name, phone, address } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -58,11 +55,8 @@ export async function POST(request: NextRequest) {
 
     const newCustomer = await createCustomer({
       name,
-      email,
       phone,
       address,
-      is_vip,
-      type,
     });
 
     revalidatePath("/dashboard");

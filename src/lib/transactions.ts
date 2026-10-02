@@ -1,4 +1,4 @@
-import { CustomerType, Prisma, PrismaClient, TransactionType } from "@prisma/client";
+import { Prisma, PrismaClient, TransactionType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -58,11 +58,8 @@ export interface CustomerTransactionSummary {
 export interface TransactionCustomerInfo {
   id: string;
   name: string;
-  email?: string | null;
   phone?: string | null;
   address?: string | null;
-  type?: string | null;
-  is_vip?: boolean;
 }
 
 export interface TransactionWithCustomer extends Transaction {
@@ -107,7 +104,6 @@ export interface GetCentralSalesReportOptions {
   startDate?: string;
   endDate?: string;
   type?: TransactionType | "all";
-  customerType?: string | "all";
   customerId?: string | "all";
   search?: string;
   page?: number;
@@ -124,13 +120,6 @@ export interface CentralSalesReportResult {
   dailyTrend: DailySalesTrend[];
   topCustomersBySales: CustomerSalesSummary[];
   topCustomersByDue: CustomerSalesSummary[];
-  customerTypeBreakdown: {
-    retailSales: number;
-    wholesaleSales: number;
-    bothSales: number;
-    retailCount: number;
-    wholesaleCount: number;
-  };
 }
 
 /**
@@ -536,13 +525,6 @@ export async function getCentralSalesReportData(
         dailyTrend: [],
         topCustomersBySales: [],
         topCustomersByDue: [],
-        customerTypeBreakdown: {
-          retailSales: 0,
-          wholesaleSales: 0,
-          bothSales: 0,
-          retailCount: 0,
-          wholesaleCount: 0,
-        },
       };
     }
 
@@ -574,16 +556,6 @@ export async function getCentralSalesReportData(
     // Customer ID filter
     if (options.customerId && options.customerId !== "all") {
       andConditions.push({ customer_id: { equals: options.customerId } });
-    }
-
-    // Customer Type filter
-    if (options.customerType && options.customerType !== "all") {
-      const customersOfType = await prisma.customer.findMany({
-        where: { type: options.customerType as CustomerType },
-        select: { id: true },
-      });
-      const ids = customersOfType.map((c) => c.id);
-      andConditions.push({ customer_id: { in: ids } });
     }
 
     // Search filter across reference, description, customer name, customer phone
@@ -621,10 +593,7 @@ export async function getCentralSalesReportData(
             id: true,
             name: true,
             phone: true,
-            email: true,
             address: true,
-            type: true,
-            is_vip: true,
           },
         },
       },
@@ -647,13 +616,6 @@ export async function getCentralSalesReportData(
 
     // Customer map: customerId -> sales summary
     const customerMap = new Map<string, CustomerSalesSummary>();
-
-    // Customer type breakdown
-    let retailSales = 0;
-    let wholesaleSales = 0;
-    let bothSales = 0;
-    let retailCount = 0;
-    let wholesaleCount = 0;
 
     for (const r of allRecords) {
       const amount = Number(r.amount) || 0;
@@ -712,8 +674,6 @@ export async function getCentralSalesReportData(
           customerId: cId,
           customerName: r.customer.name,
           phone: r.customer.phone,
-          customerType: r.customer.type,
-          isVip: r.customer.is_vip,
           totalSales: 0,
           totalPaid: 0,
           totalDue: 0,
@@ -724,17 +684,6 @@ export async function getCentralSalesReportData(
         cSummary.totalDue += itemDue;
         cSummary.txCount++;
         customerMap.set(cId, cSummary);
-
-        // Type breakdown
-        if (r.customer.type === "WHOLESALE") {
-          wholesaleSales += itemSale;
-          wholesaleCount++;
-        } else if (r.customer.type === "RETAIL") {
-          retailSales += itemSale;
-          retailCount++;
-        } else {
-          bothSales += itemSale;
-        }
       }
     }
 
@@ -808,10 +757,7 @@ export async function getCentralSalesReportData(
             id: r.customer.id,
             name: r.customer.name,
             phone: r.customer.phone,
-            email: r.customer.email,
             address: r.customer.address,
-            type: r.customer.type,
-            is_vip: r.customer.is_vip,
           }
         : null,
     }));
@@ -837,13 +783,6 @@ export async function getCentralSalesReportData(
       dailyTrend,
       topCustomersBySales,
       topCustomersByDue,
-      customerTypeBreakdown: {
-        retailSales: parseFloat(retailSales.toFixed(2)),
-        wholesaleSales: parseFloat(wholesaleSales.toFixed(2)),
-        bothSales: parseFloat(bothSales.toFixed(2)),
-        retailCount,
-        wholesaleCount,
-      },
     };
   } catch (error) {
     console.error("Error in getCentralSalesReportData:", error);
@@ -868,13 +807,6 @@ export async function getCentralSalesReportData(
       dailyTrend: [],
       topCustomersBySales: [],
       topCustomersByDue: [],
-      customerTypeBreakdown: {
-        retailSales: 0,
-        wholesaleSales: 0,
-        bothSales: 0,
-        retailCount: 0,
-        wholesaleCount: 0,
-      },
     };
   }
 }

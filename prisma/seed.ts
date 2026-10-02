@@ -44,12 +44,9 @@ async function main() {
           id: item.id,
           name: item.name,
           subtitle: item.subtitle,
-          stock: 50,
           price: numericPrice,
           description: `${item.name} - ${item.subtitle}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
           image: item.image,
-          badge: item.badge || "",
-          unit: "KG",
         },
       });
       seededCount++;
@@ -66,43 +63,38 @@ async function main() {
     const sampleCustomers = [
       {
         name: "রহিম ডেইরি ফার্ম",
-        email: "rahim.dairy@example.com",
         phone: "01711223344",
         address: "পাবনা সদর, পাবনা",
-        is_vip: true,
-        type: "WHOLESALE" as const,
+
+
       },
       {
         name: "আলমগীর ক্যাটল ফিড",
-        email: "alamgir.feed@example.com",
         phone: "01811556677",
         address: "শাহজাদপুর, সিরাজগঞ্জ",
-        is_vip: false,
-        type: "WHOLESALE" as const,
+
+
       },
       {
         name: "গ্রীন ডেইরি অ্যান্ড এগ্রো",
-        email: "greendairy@example.com",
         phone: "01911889900",
         address: "শেরপুর, বগুড়া",
-        is_vip: true,
-        type: "BOTH" as const,
+
+
       },
       {
         name: "হাজী আব্দুল্লাহ খামার",
-        email: "abdullah.farm@example.com",
         phone: "01611334455",
         address: "সিংড়া, নাটোর",
-        is_vip: false,
-        type: "RETAIL" as const,
+
+
       },
       {
         name: "সোনালী ফিশারিজ ও ডেইরি",
-        email: "sonali.farm@example.com",
         phone: "01722446688",
         address: "মিঠাপুকুর, রংপুর",
-        is_vip: true,
-        type: "BOTH" as const,
+
+
       },
     ];
 

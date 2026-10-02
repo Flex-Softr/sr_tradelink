@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 
-import type { Customer, CustomerType } from "@/lib/customers";
+import type { Customer } from "@/lib/customers";
 import type { Party, PartyTransaction, PartyTransactionSummary } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
@@ -9,18 +9,6 @@ import type {
   TransactionType,
   TransactionWithCustomer,
 } from "@/lib/transactions";
-
-function getCustomerTypeLabel(type: CustomerType): string {
-  switch (type) {
-    case "WHOLESALE":
-      return "পাইকারি (Wholesale)";
-    case "BOTH":
-      return "খুচরা ও পাইকারি (Both)";
-    case "RETAIL":
-    default:
-      return "খুচরা (Retail)";
-  }
-}
 
 function getTransactionTypeLabel(type: TransactionType): string {
   switch (type) {
@@ -78,9 +66,6 @@ export function exportCustomersToExcel(customers: Customer[], customFileName?: s
     "ক্রমিক নং": index + 1,
     "গ্রাহকের নাম": c.name || "-",
     "মোবাইল নম্বর": c.phone || "-",
-    ইমেইল: c.email || "-",
-    "গ্রাহকের ধরণ": getCustomerTypeLabel(c.type),
-    "ভিআইপি গ্রাহক": c.is_vip ? "হ্যাঁ (VIP)" : "না",
     ঠিকানা: c.address || "-",
     "নিবন্ধনের তারিখ": formatDate(c.created_at),
   }));
@@ -115,9 +100,6 @@ export function exportCustomersToCSV(customers: Customer[], customFileName?: str
     "ক্রমিক নং": index + 1,
     "গ্রাহকের নাম": c.name || "-",
     "মোবাইল নম্বর": c.phone || "-",
-    ইমেইল: c.email || "-",
-    "গ্রাহকের ধরণ": getCustomerTypeLabel(c.type),
-    "ভিআইপি গ্রাহক": c.is_vip ? "হ্যাঁ" : "না",
     ঠিকানা: c.address || "-",
     "নিবন্ধনের তারিখ": formatDate(c.created_at),
   }));
@@ -156,20 +138,7 @@ export function exportCustomerTransactionsToExcel({
     [],
     ["গ্রাহকের তথ্য"],
     ["গ্রাহকের নাম:", customer.name, "", "মোবাইল নম্বর:", customer.phone || "তথ্য নেই"],
-    [
-      "গ্রাহকের ধরণ:",
-      getCustomerTypeLabel(customer.type),
-      "",
-      "ইমেইল:",
-      customer.email || "তথ্য নেই",
-    ],
-    [
-      "ঠিকানা:",
-      customer.address || "তথ্য নেই",
-      "",
-      "ভিআইপি স্ট্যাটাস:",
-      customer.is_vip ? "হ্যাঁ (VIP)" : "না",
-    ],
+    ["ঠিকানা:", customer.address || "তথ্য নেই"],
     [],
     ["আর্থিক হিসাব সারসংক্ষেপ (খতিয়ান)"],
     [
@@ -336,7 +305,6 @@ export function exportCentralSalesReportToExcel({
       "চালান / মেমো",
       "গ্রাহকের নাম",
       "মোবাইল নম্বর",
-      "গ্রাহকের ধরণ",
       "লেনদেনের ধরণ",
       "মোট মূল্য (৳)",
       "আদায় / জমা (৳)",
@@ -352,7 +320,6 @@ export function exportCentralSalesReportToExcel({
       tx.reference || tx.id.slice(-6).toUpperCase(),
       tx.customer?.name || "-",
       tx.customer?.phone || "-",
-      tx.customer?.type ? getCustomerTypeLabel(tx.customer.type as CustomerType) : "-",
       getTransactionTypeLabel(tx.type),
       tx.amount ?? 0,
       tx.paid_amount ?? 0,
@@ -422,9 +389,6 @@ export function exportCentralSalesReportToCSV({
     "চালান / মেমো": tx.reference || tx.id.slice(-6).toUpperCase(),
     "গ্রাহকের নাম": tx.customer?.name || "-",
     "মোবাইল নম্বর": tx.customer?.phone || "-",
-    "গ্রাহকের ধরণ": tx.customer?.type
-      ? getCustomerTypeLabel(tx.customer.type as CustomerType)
-      : "-",
     "লেনদেনের ধরণ": getTransactionTypeLabel(tx.type),
     "মোট টাকা (৳)": tx.amount ?? 0,
     "আদায় (৳)": tx.paid_amount ?? 0,
@@ -439,7 +403,6 @@ export function exportCentralSalesReportToCSV({
     "চালান / মেমো": "-",
     "গ্রাহকের নাম": "-",
     "মোবাইল নম্বর": "-",
-    "গ্রাহকের ধরণ": "-",
     "লেনদেনের ধরণ": `মোট ${metrics.totalTransactions} টি`,
     "মোট টাকা (৳)": metrics.totalSales,
     "আদায় (৳)": metrics.totalCollected,

@@ -44,15 +44,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
     const { id } = await context.params;
     const body = await request.json();
-    const { name, email, phone, address, is_vip, type } = body;
+    const { name, phone, address } = body;
 
     const updated = await updateCustomer(id, {
       name,
-      email,
       phone,
       address,
-      is_vip,
-      type,
     });
 
     revalidatePath("/dashboard");

@@ -20,21 +20,13 @@ model User {
   @@map("users")
 }
 
-enum ProductUnit {
-  KG
-  G
-}
-
 model Product {
   id          String               @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   subtitle    String?
-  stock       Float?               @default(0.0)
   price       Float?               @default(0.0)
   description String?
   image       String?
-  badge       String?              @default("")
-  unit        ProductUnit?         @default(KG)
   transactions ProductTransaction[]
   created_at  DateTime             @default(now()) @map("created_at")
   updated_at  DateTime             @updatedAt @map("updated_at")
@@ -58,20 +50,11 @@ model ProductTransaction {
   @@map("product_transactions")
 }
 
-enum CustomerType {
-  RETAIL
-  WHOLESALE
-  BOTH
-}
-
 model Customer {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  email        String?       @unique
   phone        String?       @unique
   address      String?
-  is_vip       Boolean       @default(false)
-  type         CustomerType  @default(RETAIL)
   transactions Transaction[]
   created_at   DateTime      @default(now()) @map("created_at")
   updated_at   DateTime      @updatedAt @map("updated_at")

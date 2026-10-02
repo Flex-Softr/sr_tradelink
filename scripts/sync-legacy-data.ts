@@ -1,4 +1,4 @@
-import { CustomerType, PrismaClient, TransactionType } from "@prisma/client";
+import { PrismaClient, TransactionType } from "@prisma/client";
 import * as dotenv from "dotenv";
 import { MongoClient, ObjectId } from "mongodb";
 import * as path from "path";
@@ -96,12 +96,6 @@ async function ensureSparseIndexes() {
     await prisma.$runCommandRaw({
       createIndexes: "customers",
       indexes: [
-        {
-          key: { email: 1 },
-          name: "customers_email_key",
-          unique: true,
-          partialFilterExpression: { email: { $type: "string" } },
-        },
         {
           key: { phone: 1 },
           name: "customers_phone_key",
@@ -235,19 +229,19 @@ async function sync() {
   // Handle dummy seed data cleanup if flag is passed
   if (cleanDummies && !isDryRun) {
     console.log("\n🧹 Cleaning dummy seed customer records...");
-    const dummyEmails = [
-      "rahim.dairy@example.com",
-      "alamgir.feed@example.com",
-      "greendairy@example.com",
-      "abdullah.farm@example.com",
-      "sonali.farm@example.com",
+    const dummyPhones = [
+      "01711223344",
+      "01811556677",
+      "01911889900",
+      "01611334455",
+      "01722446688",
     ];
-    for (const email of dummyEmails) {
-      const dummy = await prisma.customer.findUnique({ where: { email } });
+    for (const phone of dummyPhones) {
+      const dummy = await prisma.customer.findUnique({ where: { phone } });
       if (dummy) {
         await prisma.transaction.deleteMany({ where: { customer_id: dummy.id } });
         await prisma.customer.delete({ where: { id: dummy.id } });
-        console.log(`  - Removed dummy customer: ${dummy.name} (${email})`);
+        console.log(`  - Removed dummy customer: ${dummy.name} (${phone})`);
       }
     }
   }
@@ -279,12 +273,10 @@ async function sync() {
     const data = {
       name: fp.name.trim(),
       subtitle: fp.subtitle?.trim() || null,
-      stock: 50,
       price: priceNum,
       description: `${fp.name}${fp.subtitle ? ` - ${fp.subtitle}` : ""}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
       image: cleanImg,
       badge: fp.badge || "",
-      unit: "KG" as const,
     };
 
     if (!isDryRun) {
@@ -312,14 +304,11 @@ async function sync() {
         update: {
           name,
           price,
-          unit: "KG",
         },
         create: {
           id,
           name,
           price,
-          stock: 50,
-          unit: "KG",
           description: `${name}। উচ্চমানের গবাদি পশু খাদ্য ও ঔষধ।`,
         },
       });
@@ -403,8 +392,6 @@ async function sync() {
       name: client.name.trim(),
       phone: finalPhone,
       address: client.location?.trim() || null,
-      type: "RETAIL" as CustomerType,
-      is_vip: false,
     };
 
     if (!isDryRun) {
@@ -577,8 +564,6 @@ async function sync() {
     const dokanAccountData = {
       name: "দোকান ক্রয় ও সরবরাহকারী হিসাব (Shop & Suppliers)",
       address: "ঝাড়বাড়ী বাজার, প্রধান কার্যালয়",
-      type: "WHOLESALE" as CustomerType,
-      is_vip: true,
     };
 
     if (!isDryRun) {
@@ -650,8 +635,6 @@ async function sync() {
     const dailyAccountData = {
       name: "দৈনিক ক্যাশ ও বিতরণ হিসাব (Daily Ledger Account)",
       address: "ঝাড়বাড়ী বাজার",
-      type: "BOTH" as CustomerType,
-      is_vip: false,
     };
 
     if (!isDryRun) {

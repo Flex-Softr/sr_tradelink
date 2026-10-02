@@ -56,7 +56,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
-import type { Customer, CustomerType } from "@/lib/customers";
+import type { Customer } from "@/lib/customers";
 import {
   calculateStatementLedger,
   exportCustomerStatementPDF,
@@ -107,18 +107,6 @@ const TRANSACTION_TYPES: {
     desc: "প্রারম্ভিক বা পৃথক বকেয়া এন্ট্রি",
   },
 ];
-
-function getCustomerTypeLabel(type: CustomerType) {
-  switch (type) {
-    case "WHOLESALE":
-      return "পাইকারি";
-    case "BOTH":
-      return "খুচরা ও পাইকারি";
-    case "RETAIL":
-    default:
-      return "খুচরা";
-  }
-}
 
 function getTransactionTypeInfo(type: TransactionType) {
   return (
@@ -636,15 +624,6 @@ export default function CustomerDetailsView({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-bold tracking-tight">{customer.name}</h1>
-                  {customer.is_vip && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold text-slate-900 shadow-xs">
-                      <RiVipCrownLine className="size-3.5" />
-                      VIP সদস্য
-                    </span>
-                  )}
-                  <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur-xs">
-                    {getCustomerTypeLabel(customer.type)}
-                  </span>
                 </div>
 
                 <p className="mt-1 font-mono text-xs text-green-100">গ্রাহক আইডি: {customer.id}</p>
@@ -710,23 +689,6 @@ export default function CustomerDetailsView({
                   className="block truncate text-xs font-semibold text-slate-900 hover:underline dark:text-white"
                 >
                   {customer.phone}
-                </a>
-              ) : (
-                <span className="text-xs text-slate-400">প্রদান করা হয়নি</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 py-2 sm:px-4 sm:py-0">
-            <RiMailLine className="size-4 shrink-0 text-green-600 dark:text-green-400" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">ইমেইল ঠিকানা</p>
-              {customer.email ? (
-                <a
-                  href={`mailto:${customer.email}`}
-                  className="block truncate text-xs font-semibold text-slate-900 hover:underline dark:text-white"
-                >
-                  {customer.email}
                 </a>
               ) : (
                 <span className="text-xs text-slate-400">প্রদান করা হয়নি</span>

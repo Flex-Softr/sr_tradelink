@@ -8,7 +8,6 @@ import { authOptions } from "@/lib/auth";
 import {
   type Customer,
   type CustomerInput,
-  type CustomerType,
   createCustomer,
   deleteCustomer,
   getCustomers,
@@ -18,8 +17,6 @@ import {
 export async function fetchCustomersAction(
   options: {
     search?: string;
-    type?: CustomerType | "all";
-    is_vip?: boolean;
     limit?: number;
     skip?: number;
   } = {}

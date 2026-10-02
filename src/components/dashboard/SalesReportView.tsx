@@ -109,7 +109,6 @@ export default function SalesReportView({
   const [startDate, setStartDate] = useState<string>(defaultDates.start);
   const [endDate, setEndDate] = useState<string>(defaultDates.end);
   const [selectedType, setSelectedType] = useState<TransactionType | "all">("all");
-  const [selectedCustomerType, setSelectedCustomerType] = useState<string | "all">("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -175,8 +174,6 @@ export default function SalesReportView({
             overrides?.startDate !== undefined ? overrides.startDate : startDate || undefined,
           endDate: overrides?.endDate !== undefined ? overrides.endDate : endDate || undefined,
           type: overrides?.type !== undefined ? overrides.type : selectedType,
-          customerType:
-            overrides?.customerType !== undefined ? overrides.customerType : selectedCustomerType,
           customerId:
             overrides?.customerId !== undefined ? overrides.customerId : selectedCustomerId,
           search:
@@ -232,14 +229,12 @@ export default function SalesReportView({
     setStartDate(dates.start);
     setEndDate(dates.end);
     setSelectedType("all");
-    setSelectedCustomerType("all");
     setSelectedCustomerId("all");
     setSearchQuery("");
     loadReportData(1, {
       startDate: dates.start,
       endDate: dates.end,
       type: "all",
-      customerType: "all",
       customerId: "all",
       search: undefined,
     });
@@ -832,24 +827,6 @@ export default function SalesReportView({
                 />
               </div>
             </div>
-
-            {/* Wholesale vs Retail quick stat */}
-            <div className="mt-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">
-                  পাইকারি বিক্রয় (Wholesale):
-                </span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  ৳ {formatMoney(reportData?.customerTypeBreakdown.wholesaleSales || 0)}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">খুচরা বিক্রয় (Retail):</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  ৳ {formatMoney(reportData?.customerTypeBreakdown.retailSales || 0)}
-                </span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -1090,11 +1067,6 @@ export default function SalesReportView({
                                 >
                                   {tx.customer.name}
                                 </Link>
-                                {tx.customer.is_vip && (
-                                  <span title="VIP">
-                                    <RiVipCrownLine className="size-3 text-amber-500" />
-                                  </span>
-                                )}
                               </div>
                               <div className="text-[11px] text-slate-400">
                                 {tx.customer.phone || "-"}
