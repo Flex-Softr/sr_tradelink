@@ -1,5 +1,3 @@
-export type ProductUnit = "KG" | "G";
-
 /**
  * Product definition matching Prisma Product model
  */
@@ -7,12 +5,9 @@ export interface Product {
   id: string;
   name: string;
   subtitle?: string | null;
-  stock?: number | null;
   price?: number | null;
   description?: string | null;
   image?: string | null;
-  badge?: string | null;
-  unit?: ProductUnit | null;
   created_at?: Date | string;
   updated_at?: Date | string;
 }
@@ -254,10 +249,7 @@ export const products: Product[] = rawLegacyProducts.map((p) => ({
   id: p.id,
   name: p.name,
   subtitle: p.subtitle,
-  stock: 50,
   price: parseFloat(p.price.replace(/[^0-9.]/g, "")) || 0,
   description: `${p.name} - ${p.subtitle}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
   image: p.image,
-  badge: p.badge,
-  unit: "KG",
 }));

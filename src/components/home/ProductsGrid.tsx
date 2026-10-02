@@ -34,8 +34,6 @@ function ProductCard({
       ? `৳ ${product.price}`
       : "মূল্য উপলব্ধ নয়";
 
-  const unitDisplay = product.unit ? ` / ${product.unit}` : "";
-
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
       <div className="relative h-64 overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -55,28 +53,14 @@ function ProductCard({
             <RiImageLine className="size-12" />
           </div>
         )}
-        {product.badge && (
-          <Badge className="absolute top-4 left-4 shadow-lg">{product.badge}</Badge>
-        )}
       </div>
 
       <CardContent className="p-7">
         <div className="mb-1 flex items-start justify-between gap-2">
           <CardTitle className="text-2xl">{product.name}</CardTitle>
-          {(product.stock ?? 0) > 0 && (
-            <Badge
-              variant="outline"
-              className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-            >
-              মজুদ আছে
-            </Badge>
-          )}
         </div>
         {product.subtitle && <CardDescription className="mb-4">{product.subtitle}</CardDescription>}
-        <p className="text-primary mt-2 mb-4 text-lg font-bold">
-          {priceDisplay}
-          <span className="text-muted-foreground ml-1 text-xs font-normal">{unitDisplay}</span>
-        </p>
+        <p className="text-primary mt-2 mb-4 text-lg font-bold">{priceDisplay}</p>
 
         <Button
           variant="outline"
@@ -210,9 +194,6 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
                     <RiImageLine className="size-14" />
                   </div>
                 )}
-                {selectedProduct.badge && (
-                  <Badge className="absolute top-4 left-4 shadow-lg">{selectedProduct.badge}</Badge>
-                )}
               </div>
 
               <div className="p-6">
@@ -221,20 +202,6 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
                     <DialogTitle className="text-2xl font-bold text-slate-900 dark:text-white">
                       {selectedProduct.name}
                     </DialogTitle>
-                    {selectedProduct.stock !== undefined && selectedProduct.stock !== null && (
-                      <Badge
-                        variant="outline"
-                        className={
-                          (selectedProduct.stock ?? 0) > 0
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                            : "border-rose-300 bg-rose-50 text-rose-700"
-                        }
-                      >
-                        {(selectedProduct.stock ?? 0) > 0
-                          ? `মজুদ: ${selectedProduct.stock} ${selectedProduct.unit || "KG"}`
-                          : "স্টক শেষ"}
-                      </Badge>
-                    )}
                   </div>
                 </DialogHeader>
 
@@ -253,15 +220,12 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
                 <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
                   <div>
                     <span className="block text-xs tracking-wider text-slate-500 uppercase">
-                      মূল্য / একক
+                      মূল্য
                     </span>
                     <span className="text-primary text-xl font-bold">
                       {selectedProduct.price !== null && selectedProduct.price !== undefined
                         ? `৳ ${selectedProduct.price}`
                         : "যোগাযোগ করুন"}
-                      <span className="ml-1 text-xs font-normal text-slate-500">
-                        / {selectedProduct.unit || "KG"}
-                      </span>
                     </span>
                   </div>
                   <DialogClose render={<Button variant="outline" size="sm" />}>

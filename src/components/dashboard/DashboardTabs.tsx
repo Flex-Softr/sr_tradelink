@@ -91,7 +91,6 @@ function DashboardTabsContent({
 
   // Overall quick statistics
   const totalProducts = initialProducts.length;
-  const inStockProducts = initialProducts.filter((p) => (p.stock ?? 0) > 0).length;
   const totalCustomers = initialCustomers.length;
   const totalParties = initialParties.length;
   const totalUsers = initialUsers.length;
@@ -120,9 +119,6 @@ function DashboardTabsContent({
                 <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
                   {totalProducts}
                 </h3>
-                <p className="text-[11px] font-medium text-green-700 dark:text-green-400">
-                  মজুত আছে: {inStockProducts} টি
-                </p>
               </div>
             </div>
             <Link

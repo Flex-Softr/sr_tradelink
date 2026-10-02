@@ -19,7 +19,7 @@ import {
   updateProductTransaction,
 } from "@/lib/products";
 
-export async function fetchProductsAction(options: { search?: string; badge?: string } = {}) {
+export async function fetchProductsAction(options: { search?: string } = {}) {
   return await getProducts(options);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,11 +43,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
-import { exportMonthlyProductProfitPDF, formatDateStr, formatMoney } from "@/lib/pdf-export";
+import { exportProductProfitPDF, formatDateStr, formatMoney } from "@/lib/pdf-export";
 import {
   type ProductTransaction,
   type ProductWithTransactions,
-  calculateMonthlyProductData,
+  calculateProductReportData,
 } from "@/lib/products";
 
 interface ProductDetailsViewProps {
@@ -62,8 +62,20 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
     product.transactions || []
   );
 
-  // Filter Month (YYYY-MM)
-  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  // Report Date Range Filters
+  const [reportStartDate, setReportStartDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [reportEndDate, setReportEndDate] = useState<string>(() => {
+    const d = new Date();
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
+  });
+
+  // Date Range Filters for transactions table
+  const [filterStartDate, setFilterStartDate] = useState<string>("");
+  const [filterEndDate, setFilterEndDate] = useState<string>("");
 
   // Dialog States
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -119,26 +131,39 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
     };
   }, [transactions]);
 
-  // Monthly Report Calculation for selected month
+  // Report Calculation for selected date range
   const monthlyReport = useMemo(() => {
-    return calculateMonthlyProductData(transactions, selectedMonth);
-  }, [transactions, selectedMonth]);
+    return calculateProductReportData(transactions, reportStartDate, reportEndDate);
+  }, [transactions, reportStartDate, reportEndDate]);
 
   // Pagination for transactions list
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const sortedTransactions = useMemo(() => {
-    return [...transactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }, [transactions]);
+  // Reset to first page when filters change
+  useEffect(() => {
+    // eslint-disable-next-line
+    setCurrentPage(1);
+  }, [filterStartDate, filterEndDate]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / itemsPerPage));
+  const filteredAndSortedTransactions = useMemo(() => {
+    return [...transactions]
+      .filter((t) => {
+        // safely convert t.date to YYYY-MM-DD string
+        const tDateStr = formatDateStr(t.date);
+
+        if (filterStartDate && tDateStr < filterStartDate) return false;
+        if (filterEndDate && tDateStr > filterEndDate) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, filterStartDate, filterEndDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedTransactions.length / itemsPerPage));
   const paginatedTransactions = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return sortedTransactions.slice(start, start + itemsPerPage);
-  }, [sortedTransactions, currentPage, itemsPerPage]);
+    return filteredAndSortedTransactions.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedTransactions, currentPage, itemsPerPage]);
 
   // Form Validation
   const validateForm = () => {
@@ -260,7 +285,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
   // Handle PDF Export
   const handleDownloadPDF = async () => {
     try {
-      await exportMonthlyProductProfitPDF({
+      await exportProductProfitPDF({
         products: [
           {
             id: product.id,
@@ -271,9 +296,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
             profit: monthlyReport.profit,
           },
         ],
-        selectedMonth,
+        selectedMonth:
+          reportStartDate || reportEndDate
+            ? `${reportStartDate || "শুরু"} থেকে ${reportEndDate || "বর্তমান"}`
+            : "সম্পূর্ণ সময়",
       });
-      showFeedback("success", "মাসিক মালের লাভ-ক্ষতি পিডিএফ তৈরি হয়েছে");
+      showFeedback("success", "মালের লাভ-ক্ষতি পিডিএফ তৈরি হয়েছে");
     } catch (err) {
       console.error(err);
       showFeedback("error", "পিডিএফ ডাউনলোড করতে সমস্যা হয়েছে");
@@ -324,12 +352,37 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
         </nav>
 
         <div className="flex items-center gap-2">
-          <Input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="h-9 w-40 text-xs font-semibold"
-          />
+          <div className="flex items-center gap-1">
+            <Input
+              type="date"
+              value={reportStartDate}
+              onChange={(e) => setReportStartDate(e.target.value)}
+              className="h-9 w-32 text-xs font-semibold"
+              title="রিপোর্ট শুরুর তারিখ"
+            />
+            <span className="text-xs text-slate-400">-</span>
+            <Input
+              type="date"
+              value={reportEndDate}
+              onChange={(e) => setReportEndDate(e.target.value)}
+              className="h-9 w-32 text-xs font-semibold"
+              title="রিপোর্ট শেষ তারিখ"
+            />
+            {(reportStartDate || reportEndDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setReportStartDate("");
+                  setReportEndDate("");
+                }}
+                className="h-9 px-2 text-xs text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                title="ফিল্টার মুছুন"
+              >
+                <RiCloseLine className="size-4" />
+              </Button>
+            )}
+          </div>
 
           <Button
             variant="outline"
@@ -357,14 +410,6 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
         <CardContent className="p-6 sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-white/20 text-white backdrop-blur-sm">
-                  {product.unit || "KG"}
-                </Badge>
-                {product.badge && (
-                  <Badge className="bg-amber-400 font-bold text-slate-950">{product.badge}</Badge>
-                )}
-              </div>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
                 {product.name}
               </h1>
@@ -375,7 +420,11 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md">
               <div className="text-xs font-medium text-emerald-100">
-                নির্বাচিত মাস: {selectedMonth} (মুনাফা/ক্ষতি)
+                রিপোর্ট:{" "}
+                {reportStartDate || reportEndDate
+                  ? `${reportStartDate || "শুরু"} থেকে ${reportEndDate || "বর্তমান"}`
+                  : "সম্পূর্ণ সময়"}{" "}
+                (মুনাফা/ক্ষতি)
               </div>
               <div className="mt-1 text-2xl font-bold tracking-tight">
                 ৳ {formatMoney(monthlyReport.profit)}
@@ -462,7 +511,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <RiCalendarLine className="size-4 text-green-600" />
-              <span>মাসিক লভ্যাংশ</span>
+              <span>নিট লভ্যাংশ (রিপোর্ট)</span>
             </div>
             <div
               className={`mt-2 text-xl font-bold ${monthlyReport.profit >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
@@ -475,7 +524,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
       {/* Transactions Table Section */}
       <Card className="border-border/60 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+        <CardHeader className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
           <div>
             <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
               পণ্য লেনদেন ও স্টক খতিয়ান
@@ -484,27 +533,67 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
               প্রতিদিনের ক্রয় দর, ক্রয় ওজন, বিক্রি দর ও বিক্রি ওজনের বিবরণ
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="font-semibold">
-            মোট {transactions.length} টি লেনদেন
-          </Badge>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-medium text-slate-500">তারিখ:</div>
+              <Input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="h-8 w-32 text-xs"
+                title="শুরুর তারিখ"
+              />
+              <span className="text-slate-400">-</span>
+              <Input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="h-8 w-32 text-xs"
+                title="শেষ তারিখ"
+              />
+              {(filterStartDate || filterEndDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterStartDate("");
+                    setFilterEndDate("");
+                  }}
+                  className="h-8 px-2 text-xs text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                  title="ফিল্টার মুছুন"
+                >
+                  <RiCloseLine className="size-4" />
+                </Button>
+              )}
+            </div>
+            <Badge variant="secondary" className="font-semibold">
+              মোট {filteredAndSortedTransactions.length} টি লেনদেন
+            </Badge>
+          </div>
         </CardHeader>
 
         <CardContent className="pt-6">
-          {transactions.length === 0 ? (
+          {filteredAndSortedTransactions.length === 0 ? (
             <div className="py-12 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
                 <RiShoppingBag3Line className="size-6" />
               </div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                কোনো লেনদেনের রেকর্ড নেই
+                {transactions.length === 0
+                  ? "কোনো লেনদেনের রেকর্ড নেই"
+                  : "কোনো ফলাফল পাওয়া যায়নি"}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                এই পণ্যের জন্য এখনো কোনো ক্রয় বা বিক্রয়ের লেনদেন এন্ট্রি করা হয়নি।
+                {transactions.length === 0
+                  ? "এই পণ্যের জন্য এখনো কোনো ক্রয় বা বিক্রয়ের লেনদেন এন্ট্রি করা হয়নি।"
+                  : "আপনার নির্বাচিত তারিখের মধ্যে কোনো লেনদেন পাওয়া যায়নি।"}
               </p>
-              <Button onClick={openAddDialog} className="mt-4 gap-1.5 bg-green-600 text-white">
-                <RiAddLine className="size-4" />
-                <span>প্রথম লেনদেন যোগ করুন</span>
-              </Button>
+              {transactions.length === 0 && (
+                <Button onClick={openAddDialog} className="mt-4 gap-1.5 bg-green-600 text-white">
+                  <RiAddLine className="size-4" />
+                  <span>প্রথম লেনদেন যোগ করুন</span>
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
@@ -585,7 +674,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  totalItems={sortedTransactions.length}
+                  totalItems={filteredAndSortedTransactions.length}
                   itemsPerPage={itemsPerPage}
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={setItemsPerPage}

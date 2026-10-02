@@ -44,17 +44,14 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
     const { id } = await context.params;
     const body = await request.json();
-    const { name, subtitle, stock, price, description, image, badge, unit } = body;
+    const { name, subtitle, price, description, image } = body;
 
     const updated = await updateProduct(id, {
       name,
       subtitle,
-      stock,
       price,
       description,
       image,
-      badge,
-      unit,
     });
 
     revalidatePath("/");

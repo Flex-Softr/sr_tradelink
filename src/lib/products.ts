@@ -1,42 +1,26 @@
-import { type Product, type ProductUnit, products as fallbackProducts } from "@/data/products";
+import { type Product, products as fallbackProducts } from "@/data/products";
 import { prisma } from "@/lib/prisma";
 
-export type { Product, ProductUnit };
+export type { Product };
 
 export interface ProductInput {
   name: string;
   subtitle?: string | null;
-  stock?: number | string | null;
   price?: number | string | null;
   description?: string | null;
   image?: string | null;
-  badge?: string | null;
-  unit?: ProductUnit | null;
 }
 
 export interface GetProductsOptions {
   search?: string;
-  badge?: string;
-  unit?: ProductUnit | string;
   limit?: number;
   skip?: number;
-}
-
-function parseStockValue(value: unknown): number | null {
-  if (value === undefined || value === null || value === "") return 0.0;
-  const parsed = typeof value === "number" ? value : parseFloat(String(value));
-  return isNaN(parsed) || parsed < 0 ? 0.0 : parsed;
 }
 
 function parsePriceValue(value: unknown): number | null {
   if (value === undefined || value === null || value === "") return 0.0;
   const parsed = typeof value === "number" ? value : parseFloat(String(value));
   return isNaN(parsed) ? 0.0 : parsed;
-}
-
-function normalizeUnit(value: unknown): ProductUnit {
-  if (value === "G") return "G";
-  return "KG";
 }
 
 /**
@@ -51,8 +35,6 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
           subtitle?: { contains: string; mode: "insensitive" };
           description?: { contains: string; mode: "insensitive" };
         }>;
-        badge?: { equals: string; mode?: "insensitive" };
-        unit?: { equals: ProductUnit };
       }>;
     } = {};
 
@@ -69,18 +51,6 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
       });
     }
 
-    if (options.badge?.trim() && options.badge !== "all" && options.badge !== "সকল") {
-      conditions.push({
-        badge: { equals: options.badge.trim() },
-      });
-    }
-
-    if (options.unit && (options.unit === "KG" || options.unit === "G")) {
-      conditions.push({
-        unit: { equals: options.unit as ProductUnit },
-      });
-    }
-
     if (conditions.length > 0) {
       whereClause.AND = conditions;
     }
@@ -92,7 +62,7 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
       skip: options.skip,
     });
 
-    if (dbProducts.length === 0 && !options.search && !options.badge && !options.unit) {
+    if (dbProducts.length === 0 && !options.search) {
       return fallbackProducts;
     }
 
@@ -100,12 +70,9 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
       id: p.id,
       name: p.name,
       subtitle: p.subtitle,
-      stock: p.stock,
       price: p.price,
       description: p.description,
       image: p.image,
-      badge: p.badge,
-      unit: p.unit,
       created_at: p.created_at,
       updated_at: p.updated_at,
     }));
@@ -120,12 +87,6 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
           (p.subtitle && p.subtitle.toLowerCase().includes(term)) ||
           (p.description && p.description.toLowerCase().includes(term))
       );
-    }
-    if (options.badge?.trim() && options.badge !== "all" && options.badge !== "সকল") {
-      result = result.filter((p) => p.badge === options.badge);
-    }
-    if (options.unit && (options.unit === "KG" || options.unit === "G")) {
-      result = result.filter((p) => p.unit === options.unit);
     }
     return result;
   }
@@ -149,12 +110,9 @@ export async function getProductById(id: string): Promise<Product | null> {
       id: product.id,
       name: product.name,
       subtitle: product.subtitle,
-      stock: product.stock,
       price: product.price,
       description: product.description,
       image: product.image,
-      badge: product.badge,
-      unit: product.unit,
       created_at: product.created_at,
       updated_at: product.updated_at,
     };
@@ -169,26 +127,21 @@ export async function getProductById(id: string): Promise<Product | null> {
  * Create a new product in the database
  */
 export async function createProduct(input: ProductInput): Promise<Product> {
-  const { name, subtitle, stock, price, description, image, badge, unit } = input;
+  const { name, subtitle, price, description, image } = input;
 
   if (!name?.trim()) {
     throw new Error("পণ্যের নাম আবশ্যক");
   }
 
-  const parsedStock = parseStockValue(stock);
   const parsedPrice = parsePriceValue(price);
-  const normalizedUnit = normalizeUnit(unit);
 
   const newProduct = await prisma.product.create({
     data: {
       name: name.trim(),
       subtitle: subtitle?.trim() || null,
-      stock: parsedStock,
       price: parsedPrice,
       description: description?.trim() || null,
       image: image?.trim() || null,
-      badge: badge?.trim() ?? "",
-      unit: normalizedUnit,
     },
   });
 
@@ -196,12 +149,9 @@ export async function createProduct(input: ProductInput): Promise<Product> {
     id: newProduct.id,
     name: newProduct.name,
     subtitle: newProduct.subtitle,
-    stock: newProduct.stock,
     price: newProduct.price,
     description: newProduct.description,
     image: newProduct.image,
-    badge: newProduct.badge,
-    unit: newProduct.unit,
     created_at: newProduct.created_at,
     updated_at: newProduct.updated_at,
   };
@@ -218,20 +168,14 @@ export async function updateProduct(id: string, input: Partial<ProductInput>): P
   const data: {
     name?: string;
     subtitle?: string | null;
-    stock?: number | null;
     price?: number | null;
     description?: string | null;
     image?: string | null;
-    badge?: string;
-    unit?: ProductUnit;
   } = {};
 
   if (input.name !== undefined) data.name = input.name.trim();
   if (input.subtitle !== undefined) {
     data.subtitle = input.subtitle ? input.subtitle.trim() : null;
-  }
-  if (input.stock !== undefined) {
-    data.stock = parseStockValue(input.stock);
   }
   if (input.price !== undefined) {
     data.price = parsePriceValue(input.price);
@@ -241,12 +185,6 @@ export async function updateProduct(id: string, input: Partial<ProductInput>): P
   }
   if (input.image !== undefined) {
     data.image = input.image ? input.image.trim() : null;
-  }
-  if (input.badge !== undefined) {
-    data.badge = input.badge ? input.badge.trim() : "";
-  }
-  if (input.unit !== undefined) {
-    data.unit = normalizeUnit(input.unit);
   }
 
   const updated = await prisma.product.update({
@@ -258,12 +196,9 @@ export async function updateProduct(id: string, input: Partial<ProductInput>): P
     id: updated.id,
     name: updated.name,
     subtitle: updated.subtitle,
-    stock: updated.stock,
     price: updated.price,
     description: updated.description,
     image: updated.image,
-    badge: updated.badge,
-    unit: updated.unit,
     created_at: updated.created_at,
     updated_at: updated.updated_at,
   };
@@ -302,16 +237,25 @@ export interface MonthlyProductReport {
 }
 
 /**
- * Calculate Monthly Product Data (Profit / Loss & Rates) matching legacy logic with exact division safety fixes
+ * Calculate Product Report Data (Profit / Loss & Rates) matching legacy logic with exact division safety fixes
  */
-export function calculateMonthlyProductData(
+export function calculateProductReportData(
   transactions: ProductTransaction[] = [],
-  selectedMonth: string
+  startDate?: string,
+  endDate?: string
 ): MonthlyProductReport {
-  // Filter for selected month (YYYY-MM)
-  const monthTransactions = transactions.filter((t) => {
-    const dStr = typeof t.date === "string" ? t.date : t.date ? new Date(t.date).toISOString() : "";
-    return dStr.startsWith(selectedMonth);
+  // Filter for date range
+  const reportTransactions = transactions.filter((t) => {
+    let tDateStr = "";
+    if (t.date instanceof Date) {
+      tDateStr = t.date.toISOString().split("T")[0];
+    } else if (typeof t.date === "string") {
+      tDateStr = t.date.split("T")[0];
+    }
+
+    if (startDate && tDateStr < startDate) return false;
+    if (endDate && tDateStr > endDate) return false;
+    return true;
   });
 
   let buyWeight = 0;
@@ -319,7 +263,7 @@ export function calculateMonthlyProductData(
   let saleWeight = 0;
   let salePrice = 0;
 
-  monthTransactions.forEach((t) => {
+  reportTransactions.forEach((t) => {
     buyWeight += Number(t.kroyweight || 0);
     buyPrice += Number(t.kroyprice || 0);
     saleWeight += Number(t.dailysaleweight || 0);
@@ -379,12 +323,9 @@ export async function getProductWithTransactions(
       id: product.id,
       name: product.name,
       subtitle: product.subtitle,
-      stock: product.stock,
       price: product.price,
       description: product.description,
       image: product.image,
-      badge: product.badge,
-      unit: product.unit,
       created_at: product.created_at,
       updated_at: product.updated_at,
       transactions: product.transactions.map((t) => ({
@@ -424,12 +365,9 @@ export async function getProductsWithTransactions(): Promise<ProductWithTransact
       id: p.id,
       name: p.name,
       subtitle: p.subtitle,
-      stock: p.stock,
       price: p.price,
       description: p.description,
       image: p.image,
-      badge: p.badge,
-      unit: p.unit,
       created_at: p.created_at,
       updated_at: p.updated_at,
       transactions: p.transactions.map((t) => ({

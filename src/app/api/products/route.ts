@@ -4,18 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { type ProductUnit, createProduct, getProducts } from "@/lib/products";
+import { createProduct, getProducts } from "@/lib/products";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const badge = searchParams.get("badge") || undefined;
-    const unit = (searchParams.get("unit") as ProductUnit) || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const skip = searchParams.get("skip") ? parseInt(searchParams.get("skip")!, 10) : undefined;
 
-    const products = await getProducts({ search, badge, unit, limit, skip });
+    const products = await getProducts({ search, limit, skip });
 
     return NextResponse.json({
       success: true,
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, subtitle, stock, price, description, image, badge, unit } = body;
+    const { name, subtitle, price, description, image } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -58,12 +56,9 @@ export async function POST(request: NextRequest) {
     const newProduct = await createProduct({
       name,
       subtitle,
-      stock,
       price,
       description,
       image,
-      badge,
-      unit,
     });
 
     revalidatePath("/");

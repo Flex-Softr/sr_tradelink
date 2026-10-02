@@ -15,7 +15,6 @@ import {
   RiErrorWarningLine,
   RiEyeLine,
   RiFileTextLine,
-  RiFilterLine,
   RiImageLine,
   RiLoader4Line,
   RiRefreshLine,
@@ -39,28 +38,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
-import type { Product, ProductInput, ProductUnit } from "@/lib/products";
+import type { Product, ProductInput } from "@/lib/products";
 import { sanitizeImageUrl } from "@/lib/utils";
-
-const PRESET_BADGES = ["Farmer's Choice", "Hot", "Balanced", "Recommended", "Premium"];
-const PRESET_UNITS: ProductUnit[] = ["KG", "G"];
-
-function getBadgeVariantClass(badge?: string | null) {
-  switch (badge) {
-    case "Farmer's Choice":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30";
-    case "Hot":
-      return "bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-500/30";
-    case "Balanced":
-      return "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-500/30";
-    case "Recommended":
-      return "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-500/30";
-    case "Premium":
-      return "bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/60 dark:text-purple-300 dark:ring-purple-500/30";
-    default:
-      return "bg-slate-50 text-slate-700 ring-slate-600/20 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700";
-  }
-}
 
 interface ProductManagementProps {
   initialProducts: Product[];
@@ -69,8 +48,6 @@ interface ProductManagementProps {
 export default function ProductManagement({ initialProducts }: ProductManagementProps) {
   const [productsList, setProductsList] = useState<Product[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBadgeFilter, setSelectedBadgeFilter] = useState("all");
-  const [selectedUnitFilter, setSelectedUnitFilter] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Dialog states
@@ -86,27 +63,18 @@ export default function ProductManagement({ initialProducts }: ProductManagement
   const [formData, setFormData] = useState<{
     name: string;
     subtitle: string;
-    stock: number | string;
     price: number | string;
     description: string;
     image: string;
-    badge: string;
-    unit: ProductUnit;
   }>({
     name: "",
     subtitle: "",
-    stock: 0,
     price: 0,
     description: "",
     image: "",
-    badge: "Farmer's Choice",
-    unit: "KG",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [customBadge, setCustomBadge] = useState("");
-  const [showCustomBadge, setShowCustomBadge] = useState(false);
-
   // Toast / notification feedback
   const [notification, setNotification] = useState<{
     type: "success" | "error";
@@ -135,13 +103,9 @@ export default function ProductManagement({ initialProducts }: ProductManagement
           product.price !== undefined &&
           String(product.price).includes(term));
 
-      const matchesBadge = selectedBadgeFilter === "all" || product.badge === selectedBadgeFilter;
-
-      const matchesUnit = selectedUnitFilter === "all" || product.unit === selectedUnitFilter;
-
-      return matchesSearch && matchesBadge && matchesUnit;
+      return matchesSearch;
     });
-  }, [productsList, searchTerm, selectedBadgeFilter, selectedUnitFilter]);
+  }, [productsList, searchTerm]);
 
   // Pagination (20 items per page by default)
   const [currentPage, setCurrentPage] = useState(1);
@@ -175,15 +139,10 @@ export default function ProductManagement({ initialProducts }: ProductManagement
     setFormData({
       name: "",
       subtitle: "",
-      stock: 50,
       price: 0,
       description: "",
       image: "",
-      badge: "Farmer's Choice",
-      unit: "KG",
     });
-    setCustomBadge("");
-    setShowCustomBadge(false);
     setFormErrors({});
     setIsAddOpen(true);
   };
@@ -191,20 +150,13 @@ export default function ProductManagement({ initialProducts }: ProductManagement
   // Open Edit Dialog
   const openEditDialog = (product: Product) => {
     setActiveProduct(product);
-    const badgeVal = product.badge || "";
-    const isCustom = badgeVal !== "" && !PRESET_BADGES.includes(badgeVal);
     setFormData({
       name: product.name,
       subtitle: product.subtitle || "",
-      stock: product.stock ?? 0,
       price: product.price ?? 0,
       description: product.description || "",
       image: product.image || "",
-      badge: isCustom ? "custom" : badgeVal || "Farmer's Choice",
-      unit: product.unit || "KG",
     });
-    setShowCustomBadge(isCustom);
-    setCustomBadge(isCustom ? badgeVal : "");
     setFormErrors({});
     setIsEditOpen(true);
   };
@@ -225,9 +177,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!formData.name.trim()) errors.name = "পণ্যের নাম প্রদান করুন";
-    if (formData.stock !== "" && Number(formData.stock) < 0) {
-      errors.stock = "স্টকের পরিমাণ ঋণাত্মক হতে পারে না";
-    }
     if (formData.price !== "" && Number(formData.price) < 0) {
       errors.price = "মূল্য ঋণাত্মক হতে পারে না";
     }
@@ -238,10 +187,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
     ) {
       errors.image = "সঠিক URL প্রদান করুন (http:// বা https:// দিয়ে শুরু)";
     }
-    if (showCustomBadge && !customBadge.trim()) {
-      errors.badge = "কাস্টম ব্যাজের নাম লিখুন";
-    }
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -251,16 +196,12 @@ export default function ProductManagement({ initialProducts }: ProductManagement
     e.preventDefault();
     if (!validateForm()) return;
 
-    const finalBadge = showCustomBadge ? customBadge.trim() : formData.badge;
     const input: ProductInput = {
       name: formData.name.trim(),
       subtitle: formData.subtitle.trim() || null,
-      stock: Number(formData.stock) || 0,
       price: Number(formData.price) || 0,
       description: formData.description.trim() || null,
       image: formData.image.trim() || null,
-      badge: finalBadge,
-      unit: formData.unit,
     };
 
     startTransition(async () => {
@@ -281,16 +222,12 @@ export default function ProductManagement({ initialProducts }: ProductManagement
     e.preventDefault();
     if (!activeProduct || !validateForm()) return;
 
-    const finalBadge = showCustomBadge ? customBadge.trim() : formData.badge;
     const input: Partial<ProductInput> = {
       name: formData.name.trim(),
       subtitle: formData.subtitle.trim() || null,
-      stock: Number(formData.stock) || 0,
       price: Number(formData.price) || 0,
       description: formData.description.trim() || null,
       image: formData.image.trim() || null,
-      badge: finalBadge,
-      unit: formData.unit,
     };
 
     startTransition(async () => {
@@ -435,84 +372,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                   </button>
                 )}
               </div>
-
-              {/* Unit Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">একক (Unit):</span>
-                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedUnitFilter("all");
-                      setCurrentPage(1);
-                    }}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                      selectedUnitFilter === "all"
-                        ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                    }`}
-                  >
-                    সকল
-                  </button>
-                  {PRESET_UNITS.map((u) => (
-                    <button
-                      key={u}
-                      type="button"
-                      onClick={() => {
-                        setSelectedUnitFilter(u);
-                        setCurrentPage(1);
-                      }}
-                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                        selectedUnitFilter === u
-                          ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                      }`}
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Badge Filters */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="mr-1 flex items-center gap-1 text-xs font-medium text-slate-500">
-                <RiFilterLine className="size-3.5" />
-                ব্যাজ ফিল্টার:
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedBadgeFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
-                  selectedBadgeFilter === "all"
-                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
-                }`}
-              >
-                সকল ({productsList.length})
-              </button>
-              {PRESET_BADGES.map((badge) => {
-                const count = productsList.filter((p) => p.badge === badge).length;
-                return (
-                  <button
-                    key={badge}
-                    onClick={() => {
-                      setSelectedBadgeFilter(badge);
-                      setCurrentPage(1);
-                    }}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
-                      selectedBadgeFilter === badge
-                        ? "bg-green-600 text-white ring-1 ring-green-600"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
-                    }`}
-                  >
-                    {badge} ({count})
-                  </button>
-                );
-              })}
             </div>
           </div>
 
@@ -526,18 +385,16 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 কোনো পণ্য খুঁজে পাওয়া যায়নি
               </h3>
               <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-                {searchTerm || selectedBadgeFilter !== "all" || selectedUnitFilter !== "all"
+                {searchTerm
                   ? "আপনার অনুসন্ধানের সাথে মেলে এমন কোনো পণ্য নেই। ফিল্টার মুছে আবার চেষ্টা করুন।"
                   : "এখনো কোনো পণ্য ডাটাবেজে যুক্ত করা হয়নি।"}
               </p>
-              {(searchTerm || selectedBadgeFilter !== "all" || selectedUnitFilter !== "all") && (
+              {searchTerm && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     setSearchTerm("");
-                    setSelectedBadgeFilter("all");
-                    setSelectedUnitFilter("all");
                   }}
                   className="mt-4"
                 >
@@ -554,13 +411,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                       পণ্য ও ছবি
                     </th>
                     <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      মজুদ (Stock)
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      মূল্য / একক
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      ব্যাজ
+                      মূল্য
                     </th>
                     <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
                       অ্যাকশন
@@ -610,48 +461,11 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                         </div>
                       </td>
 
-                      {/* Stock */}
-                      <td className="px-4 py-3">
-                        {(item.stock ?? 0) > 0 ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-flex size-2 rounded-full bg-emerald-500" />
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">
-                              {item.stock} {item.unit || "KG"}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-flex size-2 rounded-full bg-rose-500" />
-                            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                              স্টক নেই (০)
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
                       {/* Price & Unit */}
                       <td className="px-4 py-3">
                         <div className="font-bold text-slate-900 dark:text-white">
                           ৳ {item.price !== null && item.price !== undefined ? item.price : 0}
-                          <span className="ml-1 text-xs font-normal text-slate-500">
-                            / {item.unit || "KG"}
-                          </span>
                         </div>
-                      </td>
-
-                      {/* Badge */}
-                      <td className="px-4 py-3">
-                        {item.badge ? (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${getBadgeVariantClass(
-                              item.badge
-                            )}`}
-                          >
-                            {item.badge}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
                       </td>
 
                       {/* Action buttons */}
@@ -770,7 +584,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
             </div>
 
             {/* Price & Unit & Stock Grid */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3">
               {/* Price */}
               <div>
                 <Label htmlFor="add-price" className="text-sm font-medium">
@@ -791,48 +605,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                   <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>
                 )}
               </div>
-
-              {/* Unit */}
-              <div>
-                <Label className="text-sm font-medium">একক (Unit)</Label>
-                <div className="mt-1 flex rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
-                  {PRESET_UNITS.map((u) => (
-                    <button
-                      type="button"
-                      key={u}
-                      onClick={() => setFormData({ ...formData, unit: u })}
-                      className={`flex-1 rounded py-1 text-xs font-semibold transition ${
-                        formData.unit === u
-                          ? "bg-green-600 text-white shadow-xs"
-                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                      }`}
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stock */}
-              <div>
-                <Label htmlFor="add-stock" className="text-sm font-medium">
-                  মজুদ (Stock)
-                </Label>
-                <Input
-                  id="add-stock"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  placeholder="0.00"
-                  className="mt-1"
-                  aria-invalid={!!formErrors.stock}
-                />
-                {formErrors.stock && (
-                  <p className="mt-1 text-xs text-rose-500">{formErrors.stock}</p>
-                )}
-              </div>
             </div>
 
             {/* Description */}
@@ -848,55 +620,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 placeholder="পণ্যের গুণাগুণ, ব্যবহারবিধি, পুষ্টিগুণ ইত্যাদি..."
                 className="mt-1 min-h-[72px]"
               />
-            </div>
-
-            {/* Badge Selection */}
-            <div>
-              <Label className="text-sm font-medium">ব্যাজ (Badge)</Label>
-              <div className="mt-1.5 flex flex-wrap gap-2">
-                {PRESET_BADGES.map((b) => (
-                  <button
-                    type="button"
-                    key={b}
-                    onClick={() => {
-                      setShowCustomBadge(false);
-                      setFormData({ ...formData, badge: b });
-                    }}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      !showCustomBadge && formData.badge === b
-                        ? "bg-green-600 text-white shadow-xs"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                    }`}
-                  >
-                    {b}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomBadge(true)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    showCustomBadge
-                      ? "bg-green-600 text-white shadow-xs"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                  }`}
-                >
-                  কাস্টম ব্যাজ...
-                </button>
-              </div>
-
-              {showCustomBadge && (
-                <div className="mt-2">
-                  <Input
-                    value={customBadge}
-                    onChange={(e) => setCustomBadge(e.target.value)}
-                    placeholder="কাস্টম ব্যাজের নাম লিখুন..."
-                    className="h-8 text-xs"
-                  />
-                  {formErrors.badge && (
-                    <p className="mt-1 text-xs text-rose-500">{formErrors.badge}</p>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Image URL with live preview */}
@@ -1000,7 +723,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
             </div>
 
             {/* Price & Unit & Stock Grid */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3">
               {/* Price */}
               <div>
                 <Label htmlFor="edit-price" className="text-sm font-medium">
@@ -1020,47 +743,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                   <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>
                 )}
               </div>
-
-              {/* Unit */}
-              <div>
-                <Label className="text-sm font-medium">একক (Unit)</Label>
-                <div className="mt-1 flex rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
-                  {PRESET_UNITS.map((u) => (
-                    <button
-                      type="button"
-                      key={u}
-                      onClick={() => setFormData({ ...formData, unit: u })}
-                      className={`flex-1 rounded py-1 text-xs font-semibold transition ${
-                        formData.unit === u
-                          ? "bg-green-600 text-white shadow-xs"
-                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                      }`}
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stock */}
-              <div>
-                <Label htmlFor="edit-stock" className="text-sm font-medium">
-                  মজুদ (Stock)
-                </Label>
-                <Input
-                  id="edit-stock"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  className="mt-1"
-                  aria-invalid={!!formErrors.stock}
-                />
-                {formErrors.stock && (
-                  <p className="mt-1 text-xs text-rose-500">{formErrors.stock}</p>
-                )}
-              </div>
             </div>
 
             {/* Description */}
@@ -1075,55 +757,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="mt-1 min-h-[72px]"
               />
-            </div>
-
-            {/* Badge */}
-            <div>
-              <Label className="text-sm font-medium">ব্যাজ (Badge)</Label>
-              <div className="mt-1.5 flex flex-wrap gap-2">
-                {PRESET_BADGES.map((b) => (
-                  <button
-                    type="button"
-                    key={b}
-                    onClick={() => {
-                      setShowCustomBadge(false);
-                      setFormData({ ...formData, badge: b });
-                    }}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      !showCustomBadge && formData.badge === b
-                        ? "bg-green-600 text-white shadow-xs"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                    }`}
-                  >
-                    {b}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomBadge(true)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    showCustomBadge
-                      ? "bg-green-600 text-white shadow-xs"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                  }`}
-                >
-                  কাস্টম ব্যাজ...
-                </button>
-              </div>
-
-              {showCustomBadge && (
-                <div className="mt-2">
-                  <Input
-                    value={customBadge}
-                    onChange={(e) => setCustomBadge(e.target.value)}
-                    placeholder="কাস্টম ব্যাজের নাম লিখুন..."
-                    className="h-8 text-xs"
-                  />
-                  {formErrors.badge && (
-                    <p className="mt-1 text-xs text-rose-500">{formErrors.badge}</p>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Image URL with live preview */}
@@ -1242,9 +875,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                     <RiImageLine className="size-10" />
                   </div>
                 )}
-                {activeProduct.badge && (
-                  <Badge className="absolute top-4 left-4 shadow-lg">{activeProduct.badge}</Badge>
-                )}
               </div>
 
               <div className="p-6">
@@ -1252,20 +882,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                     {activeProduct.name}
                   </h3>
-                  <div className="shrink-0">
-                    {(activeProduct.stock ?? 0) > 0 ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                      >
-                        স্টক: {activeProduct.stock} {activeProduct.unit || "KG"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">স্টক নেই</Badge>
-                    )}
-                  </div>
                 </div>
-
                 {activeProduct.subtitle && (
                   <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
                     {activeProduct.subtitle}
@@ -1288,9 +905,6 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                       {activeProduct.price !== null && activeProduct.price !== undefined
                         ? activeProduct.price
                         : 0}
-                      <span className="ml-1 text-xs font-normal text-slate-500">
-                        / {activeProduct.unit || "KG"}
-                      </span>
                     </span>
                   </div>
                   <Badge variant="outline" className="text-xs">
