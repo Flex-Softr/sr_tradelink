@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Product, products as fallbackProducts } from "@/data/products";
+import { Product } from "@/lib/products";
 import { sanitizeImageUrl } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 6;
@@ -79,8 +79,7 @@ interface ProductsGridProps {
 }
 
 export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
-  const allProducts =
-    initialProducts && initialProducts.length > 0 ? initialProducts : fallbackProducts;
+  const allProducts = initialProducts || [];
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

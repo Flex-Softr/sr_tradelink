@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import * as argon2 from "argon2";
 
-import { rawLegacyProducts } from "../src/data/products";
+
 
 const prisma = new PrismaClient();
 
@@ -32,29 +32,7 @@ async function main() {
 
   console.log(`✅ Admin user seeded: ${adminUser.email} (Role: ${adminUser.role})`);
 
-  console.log("🌱 Checking products...");
-  const productCount = await prisma.product.count();
-  if (productCount === 0) {
-    console.log("🌱 Seeding initial products with updated schema...");
-    let seededCount = 0;
-    for (const item of rawLegacyProducts) {
-      const numericPrice = parseFloat(item.price.replace(/[^0-9.]/g, "")) || 0;
-      await prisma.product.create({
-        data: {
-          id: item.id,
-          name: item.name,
-          subtitle: item.subtitle,
-          price: numericPrice,
-          description: `${item.name} - ${item.subtitle}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
-          image: item.image,
-        },
-      });
-      seededCount++;
-    }
-    console.log(`✅ ${seededCount} products seeded successfully!`);
-  } else {
-    console.log(`ℹ️  Products collection already has ${productCount} records.`);
-  }
+  // Products are fully dynamic, no hardcoded initial data.
 
   console.log("🌱 Checking customers...");
   const customerCount = await prisma.customer.count();

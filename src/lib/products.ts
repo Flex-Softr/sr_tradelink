@@ -1,7 +1,15 @@
-import { type Product, products as fallbackProducts } from "@/data/products";
 import { prisma } from "@/lib/prisma";
 
-export type { Product };
+export interface Product {
+  id: string;
+  name: string;
+  subtitle?: string | null;
+  price?: number | null;
+  description?: string | null;
+  image?: string | null;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+}
 
 export interface ProductInput {
   name: string;
@@ -62,9 +70,7 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
       skip: options.skip,
     });
 
-    if (dbProducts.length === 0 && !options.search) {
-      return fallbackProducts;
-    }
+    // No fallback
 
     return dbProducts.map((p) => ({
       id: p.id,
@@ -78,17 +84,7 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
     }));
   } catch (error) {
     console.error("Error fetching products from database:", error);
-    let result = [...fallbackProducts];
-    if (options.search?.trim()) {
-      const term = options.search.trim().toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          (p.subtitle && p.subtitle.toLowerCase().includes(term)) ||
-          (p.description && p.description.toLowerCase().includes(term))
-      );
-    }
-    return result;
+    return [];
   }
 }
 
@@ -102,8 +98,7 @@ export async function getProductById(id: string): Promise<Product | null> {
     });
 
     if (!product) {
-      const fallback = fallbackProducts.find((p) => p.id === id);
-      return fallback || null;
+      return null;
     }
 
     return {
@@ -118,8 +113,7 @@ export async function getProductById(id: string): Promise<Product | null> {
     };
   } catch (error) {
     console.error("Error fetching product by ID:", error);
-    const fallback = fallbackProducts.find((p) => p.id === id);
-    return fallback || null;
+    return null;
   }
 }
 
@@ -315,8 +309,7 @@ export async function getProductWithTransactions(
     });
 
     if (!product) {
-      const fallback = fallbackProducts.find((p) => p.id === id);
-      return fallback ? { ...fallback, transactions: [] } : null;
+      return null;
     }
 
     return {
@@ -342,8 +335,7 @@ export async function getProductWithTransactions(
     };
   } catch (error) {
     console.error("Error fetching product with transactions:", error);
-    const fallback = fallbackProducts.find((p) => p.id === id);
-    return fallback ? { ...fallback, transactions: [] } : null;
+    return null;
   }
 }
 
@@ -384,7 +376,7 @@ export async function getProductsWithTransactions(): Promise<ProductWithTransact
     }));
   } catch (error) {
     console.error("Error fetching products with transactions:", error);
-    return fallbackProducts.map((p) => ({ ...p, transactions: [] }));
+    return [];
   }
 }
 
