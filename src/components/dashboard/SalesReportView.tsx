@@ -41,11 +41,7 @@ import { Input } from "@/components/ui/input";
 import type { Customer } from "@/lib/customers";
 import { exportSalesReportPDF } from "@/lib/pdf-export";
 import { exportCentralSalesReportToCSV, exportCentralSalesReportToExcel } from "@/lib/sheet-export";
-import type {
-  CentralSalesReportResult,
-  GetCentralSalesReportOptions,
-  TransactionType,
-} from "@/lib/transactions";
+import type { CentralSalesReportResult, GetCentralSalesReportOptions } from "@/lib/transactions";
 
 interface SalesReportViewProps {
   initialCustomers?: Customer[];
@@ -108,7 +104,6 @@ export default function SalesReportView({
   const [preset, setPreset] = useState<PeriodPreset>("month");
   const [startDate, setStartDate] = useState<string>(defaultDates.start);
   const [endDate, setEndDate] = useState<string>(defaultDates.end);
-  const [selectedType, setSelectedType] = useState<TransactionType | "all">("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -173,7 +168,6 @@ export default function SalesReportView({
           startDate:
             overrides?.startDate !== undefined ? overrides.startDate : startDate || undefined,
           endDate: overrides?.endDate !== undefined ? overrides.endDate : endDate || undefined,
-          type: overrides?.type !== undefined ? overrides.type : selectedType,
           customerId:
             overrides?.customerId !== undefined ? overrides.customerId : selectedCustomerId,
           search:
@@ -208,11 +202,6 @@ export default function SalesReportView({
     });
   };
 
-  const handleTypeChange = (newType: TransactionType | "all") => {
-    setSelectedType(newType);
-    loadReportData(1, { type: newType });
-  };
-
   const handleCustomerChange = (newCustomerId: string) => {
     setSelectedCustomerId(newCustomerId);
     loadReportData(1, { customerId: newCustomerId });
@@ -228,13 +217,11 @@ export default function SalesReportView({
     setPreset("month");
     setStartDate(dates.start);
     setEndDate(dates.end);
-    setSelectedType("all");
     setSelectedCustomerId("all");
     setSearchQuery("");
     loadReportData(1, {
       startDate: dates.start,
       endDate: dates.end,
-      type: "all",
       customerId: "all",
       search: undefined,
     });
@@ -503,22 +490,6 @@ export default function SalesReportView({
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                  লেনদেনের ধরণ
-                </label>
-                <select
-                  value={selectedType}
-                  onChange={(e) => handleTypeChange(e.target.value as TransactionType | "all")}
-                  className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  <option value="all">সকল লেনদেন (All)</option>
-                  <option value="SALE">শুধুমাত্র বিক্রয় (Sales)</option>
-                  <option value="PAYMENT">পরিশোধ / জমা (Payments)</option>
-                  <option value="DUE">বকেয়া সমন্বয় (Due Entry)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
                   নির্দিষ্ট গ্রাহক
                 </label>
                 <select
@@ -577,9 +548,9 @@ export default function SalesReportView({
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>মোট বিক্রয় চালান:</span>
+              <span>মোট লেনদেন:</span>
               <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                {metrics.saleCount} টি
+                {metrics.totalTransactions} টি
               </span>
             </div>
           </CardContent>
@@ -645,13 +616,13 @@ export default function SalesReportView({
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>বকেয়া চালানের সংখ্যা:</span>
+              <span>গড় লেনদেন আকার:</span>
               <span
                 className={`font-bold ${
                   metrics.totalDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-600"
                 }`}
               >
-                {metrics.dueCount} টি
+                ৳ {formatMoney(metrics.avgSaleAmount)}
               </span>
             </div>
           </CardContent>
@@ -770,7 +741,7 @@ export default function SalesReportView({
             <div>
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-600 dark:text-slate-400">
-                  বিক্রয় চালান (Sales): {metrics.saleCount} টি
+                  বিক্রয় চালান (Sales)
                 </span>
                 <span className="font-bold text-slate-900 dark:text-white">
                   ৳ {formatMoney(metrics.totalSales)}
@@ -789,7 +760,7 @@ export default function SalesReportView({
             <div>
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-600 dark:text-slate-400">
-                  নগদ আদায় / কিস্তি জমা (Payments): {metrics.paymentCount} টি
+                  নগদ আদায় / কিস্তি জমা (Payments)
                 </span>
                 <span className="font-bold text-green-700 dark:text-green-400">
                   ৳ {formatMoney(metrics.totalCollected)}
@@ -808,7 +779,7 @@ export default function SalesReportView({
             <div>
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-600 dark:text-slate-400">
-                  বকেয়া সমন্বয় (Due Adjustment): {metrics.dueCount} টি
+                  বকেয়া সমন্বয় (Due Adjustment)
                 </span>
                 <span className="font-bold text-rose-700 dark:text-rose-400">
                   ৳ {formatMoney(metrics.totalDue)}
@@ -883,11 +854,6 @@ export default function SalesReportView({
                             >
                               {cust.customerName}
                             </Link>
-                            {cust.isVip && (
-                              <span title="VIP">
-                                <RiVipCrownLine className="size-3.5 text-amber-500" />
-                              </span>
-                            )}
                           </div>
                           <span className="text-[11px] text-slate-400">{cust.phone || "-"}</span>
                         </div>
@@ -925,11 +891,6 @@ export default function SalesReportView({
                           >
                             {cust.customerName}
                           </Link>
-                          {cust.isVip && (
-                            <span title="VIP">
-                              <RiVipCrownLine className="size-3.5 text-amber-500" />
-                            </span>
-                          )}
                         </div>
                         <span className="text-[11px] text-slate-500">{cust.phone || "-"}</span>
                       </div>
@@ -990,9 +951,7 @@ export default function SalesReportView({
                 <tr>
                   <th className="py-3 pr-2 pl-4 text-center">ক্র.</th>
                   <th className="px-3 py-3">তারিখ ও সময়</th>
-                  <th className="px-3 py-3">ভাউচার / মেমো</th>
                   <th className="px-3 py-3">গ্রাহকের নাম ও যোগাযোগ</th>
-                  <th className="px-3 py-3 text-center">লেনদেন ধরণ</th>
                   <th className="px-3 py-3 text-right">মোট মূল্য</th>
                   <th className="px-3 py-3 text-right">পরিশোধ</th>
                   <th className="px-3 py-3 text-right">অবশিষ্ট বকেয়া</th>
@@ -1003,14 +962,14 @@ export default function SalesReportView({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
                       <RiRefreshLine className="mx-auto size-6 animate-spin text-emerald-600" />
                       <span className="mt-2 block text-xs">বিক্রয় ডেটা লোড হচ্ছে...</span>
                     </td>
                   </tr>
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <RiFileList3Line className="mx-auto size-9 text-slate-300 dark:text-slate-600" />
                       <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                         কোনো লেনদেন পাওয়া যায়নি
@@ -1031,7 +990,6 @@ export default function SalesReportView({
                 ) : (
                   transactions.map((tx, index) => {
                     const serialNumber = (currentPage - 1) * pageSize + index + 1;
-                    const refNo = tx.reference || tx.id.slice(-6).toUpperCase();
                     const isFullyPaid = tx.due_amount === 0 || tx.paid_amount >= tx.amount;
                     const isPartial = !isFullyPaid && tx.paid_amount > 0;
 
@@ -1054,9 +1012,6 @@ export default function SalesReportView({
                             })}
                           </span>
                         </td>
-                        <td className="px-3 py-3 font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                          #{refNo}
-                        </td>
                         <td className="px-3 py-3">
                           {tx.customer ? (
                             <div>
@@ -1076,21 +1031,7 @@ export default function SalesReportView({
                             <span className="text-slate-400 italic">গ্রাহকের নাম নেই</span>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-center">
-                          {tx.type === "SALE" ? (
-                            <Badge className="border-emerald-300/40 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              বিক্রয় (Sale)
-                            </Badge>
-                          ) : tx.type === "PAYMENT" ? (
-                            <Badge className="border-blue-300/40 bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
-                              পরিশোধ (Paid)
-                            </Badge>
-                          ) : (
-                            <Badge className="border-amber-300/40 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                              বকেয়া (Due)
-                            </Badge>
-                          )}
-                        </td>
+
                         <td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-white">
                           ৳ {formatMoney(tx.amount)}
                         </td>

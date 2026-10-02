@@ -7,7 +7,6 @@ import type { Party, PartyStatementLedgerData } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
   Transaction,
-  TransactionType,
   TransactionWithCustomer,
 } from "@/lib/transactions";
 
@@ -26,32 +25,6 @@ export interface StatementLedgerData {
   transactionCount: number;
   startDate?: string;
   endDate?: string;
-}
-
-function getTxTypeLabel(type: TransactionType): string {
-  switch (type) {
-    case "SALE":
-      return "বিক্রয় (SALE)";
-    case "PAYMENT":
-      return "জমা / পরিশোধ (PAYMENT)";
-    case "DUE":
-      return "বকেয়া যোগ (DUE)";
-    default:
-      return type;
-  }
-}
-
-function getTxBadgeColor(type: TransactionType): { bg: string; text: string; border: string } {
-  switch (type) {
-    case "SALE":
-      return { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" };
-    case "PAYMENT":
-      return { bg: "#ecfdf5", text: "#047857", border: "#a7f3d0" };
-    case "DUE":
-      return { bg: "#fff1f2", text: "#be123c", border: "#fecdd3" };
-    default:
-      return { bg: "#f1f5f9", text: "#334155", border: "#cbd5e1" };
-  }
 }
 
 export function formatMoney(amount: number): string {
@@ -118,19 +91,8 @@ export function calculateStatementLedger(
     // Calculate net impact on customer's due balance
     // Debit increases due (Sale invoice value, manual due)
     // Credit decreases due (Paid amount)
-    let debit = 0;
-    let credit = 0;
-
-    if (tx.type === "SALE") {
-      debit = Number(tx.amount) || 0;
-      credit = Number(tx.paid_amount) || 0;
-    } else if (tx.type === "PAYMENT") {
-      debit = 0;
-      credit = Number(tx.paid_amount || tx.amount) || 0;
-    } else if (tx.type === "DUE") {
-      debit = Number(tx.amount || tx.due_amount) || 0;
-      credit = Number(tx.paid_amount) || 0;
-    }
+    const debit = Number(tx.amount) || 0;
+    const credit = Number(tx.paid_amount) || 0;
 
     const netImpact = debit - credit;
 
@@ -148,19 +110,8 @@ export function calculateStatementLedger(
   let totalCredit = 0;
 
   const entries: LedgerEntry[] = inScopeTransactions.map((tx) => {
-    let debit = 0;
-    let credit = 0;
-
-    if (tx.type === "SALE") {
-      debit = Number(tx.amount) || 0;
-      credit = Number(tx.paid_amount) || 0;
-    } else if (tx.type === "PAYMENT") {
-      debit = 0;
-      credit = Number(tx.paid_amount || tx.amount) || 0;
-    } else if (tx.type === "DUE") {
-      debit = Number(tx.amount || tx.due_amount) || 0;
-      credit = Number(tx.paid_amount) || 0;
-    }
+    const debit = Number(tx.amount) || 0;
+    const credit = Number(tx.paid_amount) || 0;
 
     runningBalance = runningBalance + debit - credit;
     totalDebit += debit;
@@ -221,12 +172,6 @@ export function generateBankStatementHTML(options: {
       <tr style="background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #cbd5e1;">
         <td style="padding: 7px 8px; text-align: center; color: #64748b;">-</td>
         <td style="padding: 7px 8px; white-space: nowrap;">${ledger.startDate}</td>
-        <td style="padding: 7px 8px; font-family: monospace; color: #475569;">OPENING</td>
-        <td style="padding: 7px 8px;">
-          <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 9.5px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
-            প্রারম্ভিক জের
-          </span>
-        </td>
         <td style="padding: 7px 8px; color: #475569;">পূর্ববর্তী সময়কালের অবশিষ্ট জের (Balance B/F)</td>
         <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
         <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
@@ -238,27 +183,18 @@ export function generateBankStatementHTML(options: {
   if (ledger.entries.length === 0) {
     rowsHtml += `
       <tr>
-        <td colspan="8" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+        <td colspan="6" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
           নির্বাচিত সময়কালের মধ্যে কোনো লেনদেনের রেকর্ড পাওয়া যায়নি।
         </td>
       </tr>
     `;
   } else {
     ledger.entries.forEach((entry, idx) => {
-      const badge = getTxBadgeColor(entry.type);
       const isEven = idx % 2 === 0;
       rowsHtml += `
         <tr style="background-color: ${isEven ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
           <td style="padding: 7px 8px; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
           <td style="padding: 7px 8px; white-space: nowrap; font-size: 11px;">${formatDateStr(entry.date)}</td>
-          <td style="padding: 7px 8px; font-family: monospace; font-size: 11px; color: #0f172a; font-weight: 600;">
-            ${entry.reference || "-"}
-          </td>
-          <td style="padding: 7px 8px;">
-            <span style="display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9.5px; font-weight: 600; background: ${badge.bg}; color: ${badge.text}; border: 1px solid ${badge.border};">
-              ${getTxTypeLabel(entry.type)}
-            </span>
-          </td>
           <td style="padding: 7px 8px; font-size: 11px; color: #334155; max-width: 200px; word-break: break-word;">
             ${entry.description || "-"}
           </td>
@@ -659,8 +595,6 @@ export function generateBankStatementHTML(options: {
         <tr>
           <th style="width: 32px; text-align: center;">ক্র.</th>
           <th style="width: 80px; text-align: left;">তারিখ</th>
-          <th style="width: 100px; text-align: left;">চালান / মেমো</th>
-          <th style="width: 105px; text-align: left;">লেনদেনের ধরন</th>
           <th style="text-align: left;">বিবরণ ও মন্তব্য</th>
           <th style="width: 85px; text-align: right;">ডেবিট / বিক্রয় (৳)</th>
           <th style="width: 85px; text-align: right;">ক্রেডিট / জমা (৳)</th>
@@ -1288,13 +1222,6 @@ export function generateSalesReportHTML(options: {
     `;
   } else {
     transactions.forEach((tx, idx) => {
-      const typeBadge =
-        tx.type === "SALE"
-          ? `<span style="display:inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">বিক্রয়</span>`
-          : tx.type === "PAYMENT"
-            ? `<span style="display:inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">পরিশোধ</span>`
-            : `<span style="display:inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: #fffbeb; color: #b45309; border: 1px solid #fde68a;">বকেয়া</span>`;
-
       const statusBadge =
         tx.due_amount === 0 || tx.paid_amount >= tx.amount
           ? `<span style="color: #059669; font-weight: 700;">পরিশোধিত</span>`
@@ -1302,7 +1229,6 @@ export function generateSalesReportHTML(options: {
             ? `<span style="color: #d97706; font-weight: 600;">আংশিক</span>`
             : `<span style="color: #dc2626; font-weight: 700;">বকেয়া</span>`;
 
-      const refNo = tx.reference || tx.id.slice(-6).toUpperCase();
       const customerName = tx.customer?.name || "নামবিহীন গ্রাহক";
       const customerPhone = tx.customer?.phone || "-";
 
@@ -1310,12 +1236,10 @@ export function generateSalesReportHTML(options: {
         <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? "background-color: #f8fafc;" : ""}">
           <td style="padding: 6px 7px; text-align: center; color: #64748b; font-size: 10px;">${idx + 1}</td>
           <td style="padding: 6px 7px; white-space: nowrap; font-size: 10px;">${formatDateStr(new Date(tx.date))}</td>
-          <td style="padding: 6px 7px; font-family: monospace; font-size: 9.5px; color: #475569;">#${refNo}</td>
           <td style="padding: 6px 7px;">
             <div style="font-weight: 700; color: #0f172a; font-size: 10.5px;">${customerName}</div>
             <div style="font-size: 9px; color: #64748b;">${customerPhone}</div>
           </td>
-          <td style="padding: 6px 7px; text-align: center;">${typeBadge}</td>
           <td style="padding: 6px 7px; text-align: right; font-weight: 600; color: #0f172a;">৳ ${formatMoney(tx.amount || 0)}</td>
           <td style="padding: 6px 7px; text-align: right; font-weight: 600; color: #059669;">৳ ${formatMoney(tx.paid_amount || 0)}</td>
           <td style="padding: 6px 7px; text-align: right; font-weight: 700; color: ${tx.due_amount > 0 ? "#b91c1c" : "#64748b"};">
@@ -1589,7 +1513,6 @@ export function generateSalesReportHTML(options: {
     <div class="metric-card highlight-green">
       <div class="metric-lbl">মোট বিক্রয় (Gross Sales)</div>
       <div class="metric-num">৳ ${formatMoney(metrics.totalSales)}</div>
-      <div style="font-size: 8px; color: #059669; margin-top: 2px;">বিক্রয় চালান: ${metrics.saleCount} টি</div>
     </div>
     <div class="metric-card highlight-green">
       <div class="metric-lbl">নগদ আদায় (Cash Inflow)</div>
@@ -1599,7 +1522,6 @@ export function generateSalesReportHTML(options: {
     <div class="metric-card ${metrics.totalDue > 0 ? "highlight" : ""}">
       <div class="metric-lbl">চলতি বকেয়া (Receivables)</div>
       <div class="metric-num">৳ ${formatMoney(metrics.totalDue)}</div>
-      <div style="font-size: 8px; color: ${metrics.totalDue > 0 ? "#b91c1c" : "#64748b"}; margin-top: 2px;">বকেয়া বিল: ${metrics.dueCount} টি</div>
     </div>
     <div class="metric-card">
       <div class="metric-lbl">মোট লেনদেন সংখ্যা</div>
@@ -1608,24 +1530,13 @@ export function generateSalesReportHTML(options: {
     </div>
   </div>
 
-  <!-- Type Summary Bar -->
-  <div class="type-summary-bar">
-    <div>বিক্রয় (Sale): <strong>${metrics.saleCount} টি</strong> (৳ ${formatMoney(metrics.totalSales)})</div>
-    <div>•</div>
-    <div>পরিশোধ (Payment): <strong>${metrics.paymentCount} টি</strong> (৳ ${formatMoney(metrics.totalCollected)})</div>
-    <div>•</div>
-    <div>বকেয়া সমন্বয় (Due): <strong>${metrics.dueCount} টি</strong> (৳ ${formatMoney(metrics.totalDue)})</div>
-  </div>
-
   <!-- Detailed Transactions Table -->
   <table class="sales-table">
     <thead>
       <tr>
         <th style="width: 28px; text-align: center;">ক্র.</th>
         <th style="width: 70px;">তারিখ</th>
-        <th style="width: 75px;">মেমো নং</th>
         <th>গ্রাহকের নাম ও যোগাযোগ</th>
-        <th style="width: 60px; text-align: center;">ধরণ</th>
         <th style="width: 80px; text-align: right;">মোট মূল্য</th>
         <th style="width: 80px; text-align: right;">পরিশোধ</th>
         <th style="width: 80px; text-align: right;">বকেয়া</th>
@@ -1637,7 +1548,7 @@ export function generateSalesReportHTML(options: {
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="5" style="text-align: right;">সর্বমোট সমষ্টি:</td>
+        <td colspan="3" style="text-align: right;">সর্বমোট সমষ্টি:</td>
         <td style="text-align: right; color: #0f172a;">৳ ${formatMoney(metrics.totalSales)}</td>
         <td style="text-align: right; color: #059669;">৳ ${formatMoney(metrics.totalCollected)}</td>
         <td style="text-align: right; color: ${metrics.totalDue > 0 ? "#b91c1c" : "#0f172a"};">৳ ${formatMoney(metrics.totalDue)}</td>

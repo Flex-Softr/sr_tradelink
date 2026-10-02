@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import {
-  type TransactionType,
   createTransaction,
   getCustomerTransactionSummary,
   getTransactionsByCustomerId,
@@ -17,12 +16,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || undefined;
-    const type = (searchParams.get("type") as TransactionType | "all") || undefined;
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 20;
 
     const [transactionsData, summary] = await Promise.all([
-      getTransactionsByCustomerId(customerId, { search, type, page, limit }),
+      getTransactionsByCustomerId(customerId, { search, page, limit }),
       getCustomerTransactionSummary(customerId),
     ]);
 
@@ -59,12 +57,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const newTransaction = await createTransaction({
       customer_id: customerId,
-      type: body.type,
       amount: body.amount,
       paid_amount: body.paid_amount,
       due_amount: body.due_amount,
       description: body.description,
-      reference: body.reference,
       date: body.date,
     });
 

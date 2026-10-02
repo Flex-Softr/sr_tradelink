@@ -6,22 +6,8 @@ import type {
   CentralSalesReportMetrics,
   CustomerTransactionSummary,
   Transaction,
-  TransactionType,
   TransactionWithCustomer,
 } from "@/lib/transactions";
-
-function getTransactionTypeLabel(type: TransactionType): string {
-  switch (type) {
-    case "SALE":
-      return "বিক্রয় (Sale)";
-    case "PAYMENT":
-      return "জমা / পরিশোধ (Payment)";
-    case "DUE":
-      return "বকেয়া যোগ (Due)";
-    default:
-      return type;
-  }
-}
 
 function formatDate(dateVal?: Date | string | null): string {
   if (!dateVal) return "-";
@@ -148,16 +134,7 @@ export function exportCustomerTransactionsToExcel({
       `মোট লেনদেন: ${summary.transactionCount} টি`,
     ],
     [],
-    [
-      "ক্রমিক",
-      "তারিখ",
-      "চালান / মেমো নম্বর",
-      "লেনদেনের ধরন",
-      "মোট টাকা (৳)",
-      "পরিশোধ (৳)",
-      "বকেয়া (৳)",
-      "বিবরণ / নোট",
-    ],
+    ["ক্রমিক", "তারিখ", "মোট টাকা (৳)", "পরিশোধ (৳)", "বকেয়া (৳)", "বিবরণ / নোট"],
   ];
 
   // Append transaction rows
@@ -165,8 +142,6 @@ export function exportCustomerTransactionsToExcel({
     rows.push([
       idx + 1,
       formatDate(tx.date),
-      tx.reference || "-",
-      getTransactionTypeLabel(tx.type),
       tx.amount ?? 0,
       tx.paid_amount ?? 0,
       tx.due_amount ?? 0,
@@ -223,8 +198,6 @@ export function exportCustomerTransactionsToCSV({
   const data = transactions.map((tx, idx) => ({
     "ক্রমিক নং": String(idx + 1),
     তারিখ: formatDate(tx.date),
-    "চালান / মেমো": tx.reference || "-",
-    "লেনদেনের ধরন": getTransactionTypeLabel(tx.type),
     "মোট টাকা (৳)": tx.amount ?? 0,
     "পরিশোধ (৳)": tx.paid_amount ?? 0,
     "বকেয়া (৳)": tx.due_amount ?? 0,
@@ -235,8 +208,6 @@ export function exportCustomerTransactionsToCSV({
   data.push({
     "ক্রমিক নং": "সর্বমোট",
     তারিখ: "-",
-    "চালান / মেমো": "-",
-    "লেনদেনের ধরন": `মোট ${summary.transactionCount} টি`,
     "মোট টাকা (৳)": summary.totalSales,
     "পরিশোধ (৳)": summary.totalPaid,
     "বকেয়া (৳)": summary.totalDue,
@@ -302,10 +273,8 @@ export function exportCentralSalesReportToExcel({
     [
       "ক্রমিক নং",
       "তারিখ",
-      "চালান / মেমো",
       "গ্রাহকের নাম",
       "মোবাইল নম্বর",
-      "লেনদেনের ধরণ",
       "মোট মূল্য (৳)",
       "আদায় / জমা (৳)",
       "বকেয়া (৳)",
@@ -317,10 +286,8 @@ export function exportCentralSalesReportToExcel({
     rows.push([
       idx + 1,
       formatDate(tx.date),
-      tx.reference || tx.id.slice(-6).toUpperCase(),
       tx.customer?.name || "-",
       tx.customer?.phone || "-",
-      getTransactionTypeLabel(tx.type),
       tx.amount ?? 0,
       tx.paid_amount ?? 0,
       tx.due_amount ?? 0,
@@ -386,10 +353,8 @@ export function exportCentralSalesReportToCSV({
   const data = transactions.map((tx, idx) => ({
     "ক্রমিক নং": String(idx + 1),
     তারিখ: formatDate(tx.date),
-    "চালান / মেমো": tx.reference || tx.id.slice(-6).toUpperCase(),
     "গ্রাহকের নাম": tx.customer?.name || "-",
     "মোবাইল নম্বর": tx.customer?.phone || "-",
-    "লেনদেনের ধরণ": getTransactionTypeLabel(tx.type),
     "মোট টাকা (৳)": tx.amount ?? 0,
     "আদায় (৳)": tx.paid_amount ?? 0,
     "বকেয়া (৳)": tx.due_amount ?? 0,
@@ -400,10 +365,8 @@ export function exportCentralSalesReportToCSV({
   data.push({
     "ক্রমিক নং": "সর্বমোট",
     তারিখ: "-",
-    "চালান / মেমো": "-",
     "গ্রাহকের নাম": "-",
     "মোবাইল নম্বর": "-",
-    "লেনদেনের ধরণ": `মোট ${metrics.totalTransactions} টি`,
     "মোট টাকা (৳)": metrics.totalSales,
     "আদায় (৳)": metrics.totalCollected,
     "বকেয়া (৳)": metrics.totalDue,

@@ -1,8 +1,6 @@
-import { Prisma, PrismaClient, TransactionType } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-
-export { TransactionType };
 
 /**
  * Safe accessor for prisma.transaction model that handles Next.js hot-reload stale client cache in dev.
@@ -19,12 +17,10 @@ function getTxModel() {
 export interface Transaction {
   id: string;
   customer_id: string;
-  type: TransactionType;
   amount: number;
   paid_amount: number;
   due_amount: number;
   description?: string | null;
-  reference?: string | null;
   date: Date | string;
   created_at?: Date | string;
   updated_at?: Date | string;
@@ -32,18 +28,15 @@ export interface Transaction {
 
 export interface TransactionInput {
   customer_id: string;
-  type?: TransactionType;
   amount: number;
   paid_amount?: number;
   due_amount?: number;
   description?: string | null;
-  reference?: string | null;
   date?: Date | string;
 }
 
 export interface GetTransactionsOptions {
   search?: string;
-  type?: TransactionType | "all";
   page?: number;
   limit?: number;
 }
@@ -73,9 +66,6 @@ export interface CentralSalesReportMetrics {
   netTurnover: number;
   collectionRate: number;
   totalTransactions: number;
-  saleCount: number;
-  paymentCount: number;
-  dueCount: number;
   avgSaleAmount: number;
 }
 
@@ -92,8 +82,6 @@ export interface CustomerSalesSummary {
   customerId: string;
   customerName: string;
   phone?: string | null;
-  customerType?: string | null;
-  isVip?: boolean;
   totalSales: number;
   totalPaid: number;
   totalDue: number;
@@ -103,7 +91,6 @@ export interface CustomerSalesSummary {
 export interface GetCentralSalesReportOptions {
   startDate?: string;
   endDate?: string;
-  type?: TransactionType | "all";
   customerId?: string | "all";
   search?: string;
   page?: number;
@@ -145,9 +132,7 @@ export async function getTransactionsByCustomerId(
       AND?: Array<{
         OR?: Array<{
           description?: { contains: string; mode: "insensitive" };
-          reference?: { contains: string; mode: "insensitive" };
         }>;
-        type?: { equals: TransactionType };
       }>;
     } = {
       customer_id: customerId,
@@ -158,16 +143,7 @@ export async function getTransactionsByCustomerId(
     if (options.search?.trim()) {
       const term = options.search.trim();
       conditions.push({
-        OR: [
-          { description: { contains: term, mode: "insensitive" as const } },
-          { reference: { contains: term, mode: "insensitive" as const } },
-        ],
-      });
-    }
-
-    if (options.type && options.type !== "all") {
-      conditions.push({
-        type: { equals: options.type as TransactionType },
+        OR: [{ description: { contains: term, mode: "insensitive" as const } }],
       });
     }
 
@@ -205,12 +181,10 @@ export async function getTransactionsByCustomerId(
       transactions: records.map((t) => ({
         id: t.id,
         customer_id: t.customer_id,
-        type: t.type,
         amount: t.amount,
         paid_amount: t.paid_amount,
         due_amount: t.due_amount,
         description: t.description,
-        reference: t.reference,
         date: t.date,
         created_at: t.created_at,
         updated_at: t.updated_at,
@@ -247,12 +221,10 @@ export async function getTransactionById(id: string): Promise<Transaction | null
     return {
       id: t.id,
       customer_id: t.customer_id,
-      type: t.type,
       amount: t.amount,
       paid_amount: t.paid_amount,
       due_amount: t.due_amount,
       description: t.description,
-      reference: t.reference,
       date: t.date,
       created_at: t.created_at,
       updated_at: t.updated_at,
@@ -282,7 +254,6 @@ export async function getCustomerTransactionSummary(
     const transactions = await txModel.findMany({
       where: { customer_id: customerId },
       select: {
-        type: true,
         amount: true,
         paid_amount: true,
         due_amount: true,
@@ -294,17 +265,9 @@ export async function getCustomerTransactionSummary(
     let totalDueAddition = 0;
 
     for (const t of transactions) {
-      if (t.type === "SALE") {
-        totalSales += t.amount || 0;
-        totalPaid += t.paid_amount || 0;
-      } else if (t.type === "PAYMENT") {
-        // Payment made towards previous due
-        totalPaid += t.paid_amount || t.amount || 0;
-      } else if (t.type === "DUE") {
-        // Opening or manual due adjustment
-        totalDueAddition += t.amount || t.due_amount || 0;
-        totalPaid += t.paid_amount || 0;
-      }
+      totalSales += t.amount || 0;
+      totalPaid += t.paid_amount || 0;
+      totalDueAddition += t.due_amount || 0;
     }
 
     const netDue = Math.max(0, totalSales + totalDueAddition - totalPaid);
@@ -341,24 +304,12 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
     throw new Error("গ্রাহক খুঁজে পাওয়া যায়নি");
   }
 
-  const type = input.type || "SALE";
   const amount = Math.max(0, Number(input.amount) || 0);
-  let paid_amount = Math.max(0, Number(input.paid_amount) || 0);
+  const paid_amount = Math.max(0, Number(input.paid_amount) || 0);
   let due_amount = Math.max(0, Number(input.due_amount) || 0);
 
-  // If user provided amount and paid_amount for SALE, and due_amount was not specified, compute it
-  if (type === "SALE" && input.due_amount === undefined) {
+  if (input.due_amount === undefined) {
     due_amount = Math.max(0, amount - paid_amount);
-  } else if (type === "PAYMENT") {
-    // If it's a payment, if paid_amount is 0 but amount was given, set paid_amount = amount
-    if (paid_amount === 0 && amount > 0) {
-      paid_amount = amount;
-    }
-  } else if (type === "DUE") {
-    // If it's a pure due entry, default due_amount = amount
-    if (due_amount === 0 && amount > 0) {
-      due_amount = amount;
-    }
   }
 
   const date = input.date ? new Date(input.date) : new Date();
@@ -372,12 +323,10 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   const record = await txModel.create({
     data: {
       customer_id: input.customer_id,
-      type,
       amount,
       paid_amount,
       due_amount,
       description: input.description?.trim() || null,
-      reference: input.reference?.trim() || null,
       date,
     },
   });
@@ -385,12 +334,10 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   return {
     id: record.id,
     customer_id: record.customer_id,
-    type: record.type,
     amount: record.amount,
     paid_amount: record.paid_amount,
     due_amount: record.due_amount,
     description: record.description,
-    reference: record.reference,
     date: record.date,
     created_at: record.created_at,
     updated_at: record.updated_at,
@@ -416,18 +363,12 @@ export async function updateTransaction(
   }
 
   const dataToUpdate: {
-    type?: TransactionType;
     amount?: number;
     paid_amount?: number;
     due_amount?: number;
     description?: string | null;
-    reference?: string | null;
     date?: Date;
   } = {};
-
-  if (input.type !== undefined) {
-    dataToUpdate.type = input.type;
-  }
 
   if (input.amount !== undefined) {
     dataToUpdate.amount = Math.max(0, Number(input.amount) || 0);
@@ -445,10 +386,6 @@ export async function updateTransaction(
     dataToUpdate.description = input.description ? input.description.trim() : null;
   }
 
-  if (input.reference !== undefined) {
-    dataToUpdate.reference = input.reference ? input.reference.trim() : null;
-  }
-
   if (input.date !== undefined) {
     dataToUpdate.date = input.date ? new Date(input.date) : new Date();
   }
@@ -461,12 +398,10 @@ export async function updateTransaction(
   return {
     id: updated.id,
     customer_id: updated.customer_id,
-    type: updated.type,
     amount: updated.amount,
     paid_amount: updated.paid_amount,
     due_amount: updated.due_amount,
     description: updated.description,
-    reference: updated.reference,
     date: updated.date,
     created_at: updated.created_at,
     updated_at: updated.updated_at,
@@ -512,9 +447,6 @@ export async function getCentralSalesReportData(
           netTurnover: 0,
           collectionRate: 0,
           totalTransactions: 0,
-          saleCount: 0,
-          paymentCount: 0,
-          dueCount: 0,
           avgSaleAmount: 0,
         },
         transactions: [],
@@ -548,17 +480,12 @@ export async function getCentralSalesReportData(
       andConditions.push({ date: { lte: end } });
     }
 
-    // Type filter
-    if (options.type && options.type !== "all") {
-      andConditions.push({ type: { equals: options.type } });
-    }
-
     // Customer ID filter
     if (options.customerId && options.customerId !== "all") {
       andConditions.push({ customer_id: { equals: options.customerId } });
     }
 
-    // Search filter across reference, description, customer name, customer phone
+    // Search filter across description, customer name, customer phone
     if (options.search?.trim()) {
       const term = options.search.trim();
       const matchedCustomers = await prisma.customer.findMany({
@@ -575,7 +502,6 @@ export async function getCentralSalesReportData(
       andConditions.push({
         OR: [
           { description: { contains: term, mode: "insensitive" } },
-          { reference: { contains: term, mode: "insensitive" } },
           ...(matchedCustIds.length > 0 ? [{ customer_id: { in: matchedCustIds } }] : []),
         ],
       });
@@ -604,9 +530,6 @@ export async function getCentralSalesReportData(
     let totalSales = 0;
     let totalCollected = 0;
     let totalDue = 0;
-    let saleCount = 0;
-    let paymentCount = 0;
-    let dueCount = 0;
 
     // Daily map: date string (YYYY-MM-DD) -> metrics
     const dailyMap = new Map<
@@ -618,30 +541,9 @@ export async function getCentralSalesReportData(
     const customerMap = new Map<string, CustomerSalesSummary>();
 
     for (const r of allRecords) {
-      const amount = Number(r.amount) || 0;
-      const paid = Number(r.paid_amount) || 0;
-      const due = Number(r.due_amount) || 0;
-
-      let itemSale = 0;
-      let itemCollected = 0;
-      let itemDue = 0;
-
-      if (r.type === "SALE") {
-        saleCount++;
-        itemSale = amount;
-        itemCollected = paid;
-        itemDue = due > 0 ? due : Math.max(0, amount - paid);
-      } else if (r.type === "PAYMENT") {
-        paymentCount++;
-        itemSale = 0;
-        itemCollected = paid > 0 ? paid : amount;
-        itemDue = 0;
-      } else if (r.type === "DUE") {
-        dueCount++;
-        itemSale = 0;
-        itemCollected = paid;
-        itemDue = due > 0 ? due : amount;
-      }
+      const itemSale = Number(r.amount) || 0;
+      const itemCollected = Number(r.paid_amount) || 0;
+      const itemDue = Number(r.due_amount) || 0;
 
       totalSales += itemSale;
       totalCollected += itemCollected;
@@ -692,7 +594,8 @@ export async function getCentralSalesReportData(
     totalDue = parseFloat(totalDue.toFixed(2));
     const collectionRate =
       totalSales > 0 ? parseFloat(((totalCollected / totalSales) * 100).toFixed(1)) : 0;
-    const avgSaleAmount = saleCount > 0 ? parseFloat((totalSales / saleCount).toFixed(2)) : 0;
+    const avgSaleAmount =
+      allRecords.length > 0 ? parseFloat((totalSales / allRecords.length).toFixed(2)) : 0;
 
     // Convert dailyMap to sorted array
     const dailyTrend: DailySalesTrend[] = Array.from(dailyMap.entries())
@@ -743,12 +646,10 @@ export async function getCentralSalesReportData(
     const transactions: TransactionWithCustomer[] = paginatedRecords.map((r) => ({
       id: r.id,
       customer_id: r.customer_id,
-      type: r.type,
       amount: r.amount,
       paid_amount: r.paid_amount,
       due_amount: r.due_amount,
       description: r.description,
-      reference: r.reference,
       date: r.date,
       created_at: r.created_at,
       updated_at: r.updated_at,
@@ -770,9 +671,6 @@ export async function getCentralSalesReportData(
         netTurnover: totalSales,
         collectionRate,
         totalTransactions: total,
-        saleCount,
-        paymentCount,
-        dueCount,
         avgSaleAmount,
       },
       transactions,
@@ -794,9 +692,6 @@ export async function getCentralSalesReportData(
         netTurnover: 0,
         collectionRate: 0,
         totalTransactions: 0,
-        saleCount: 0,
-        paymentCount: 0,
-        dueCount: 0,
         avgSaleAmount: 0,
       },
       transactions: [],

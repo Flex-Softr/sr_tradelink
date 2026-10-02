@@ -1,4 +1,4 @@
-import { PrismaClient, TransactionType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
 import { MongoClient, ObjectId } from "mongodb";
 import * as path from "path";
@@ -421,23 +421,19 @@ async function sync() {
         const desc = (tx.description || tx.biboron || "").trim() || null;
         const txDate = tx.date ? new Date(tx.date) : new Date();
 
-        let type: TransactionType = "SALE";
         let amount = kroy;
         let paid_amount = joma;
         let due_amount = baki > 0 ? baki : Math.max(0, kroy - joma);
 
         if (kroy > 0) {
-          type = "SALE";
           amount = kroy;
           paid_amount = joma;
           due_amount = baki > 0 ? baki : Math.max(0, kroy - joma);
         } else if (joma > 0) {
-          type = "PAYMENT";
           amount = joma;
           paid_amount = joma;
           due_amount = 0;
         } else if (baki > 0) {
-          type = "DUE";
           amount = baki;
           paid_amount = 0;
           due_amount = baki;
@@ -447,12 +443,10 @@ async function sync() {
           await prisma.transaction.create({
             data: {
               customer_id: custId,
-              type,
               amount,
               paid_amount,
               due_amount,
               description: desc,
-              reference: null,
               date: isNaN(txDate.getTime()) ? new Date() : txDate,
             },
           });
@@ -588,13 +582,11 @@ async function sync() {
       const desc = dtx.description?.trim() || "দোকান লেনদেন ও মালামাল ক্রয়";
       const txDate = dtx.date ? new Date(dtx.date) : new Date();
 
-      let type: TransactionType = "SALE";
       let amount = motKroy;
       let paid_amount = cashJoma;
       let due_amount = pawna;
 
       if (motKroy === 0 && cashJoma > 0) {
-        type = "PAYMENT";
         amount = cashJoma;
         paid_amount = cashJoma;
         due_amount = 0;
@@ -604,12 +596,10 @@ async function sync() {
         await prisma.transaction.create({
           data: {
             customer_id: dokanAccountId,
-            type,
             amount,
             paid_amount,
             due_amount,
             description: desc,
-            reference: null,
             date: isNaN(txDate.getTime()) ? new Date() : txDate,
           },
         });
@@ -670,12 +660,10 @@ async function sync() {
         await prisma.transaction.create({
           data: {
             customer_id: dailyAccountId,
-            type: "SALE",
             amount: bikri,
             paid_amount: paid,
             due_amount: baki,
             description: notes || "দৈনিক সারসংক্ষেপ লেনদেন",
-            reference: null,
             date: isNaN(txDate.getTime()) ? new Date() : txDate,
           },
         });

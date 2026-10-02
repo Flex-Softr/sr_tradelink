@@ -70,53 +70,12 @@ import {
   type CustomerTransactionSummary,
   type Transaction,
   type TransactionInput,
-  type TransactionType,
 } from "@/lib/transactions";
 
 interface CustomerDetailsViewProps {
   customer: Customer;
   initialTransactions: Transaction[];
   initialSummary: CustomerTransactionSummary;
-}
-
-const TRANSACTION_TYPES: {
-  value: TransactionType;
-  label: string;
-  badgeClass: string;
-  desc: string;
-}[] = [
-  {
-    value: "SALE",
-    label: "বিক্রয় (Sale)",
-    badgeClass:
-      "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20 dark:bg-blue-950/60 dark:text-blue-300",
-    desc: "নতুন পণ্য বিক্রয় চালান",
-  },
-  {
-    value: "PAYMENT",
-    label: "পরিশোধ / জমা (Payment)",
-    badgeClass:
-      "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300",
-    desc: "পূর্বের বকেয়া বা নগদ অর্থ প্রাপ্তি",
-  },
-  {
-    value: "DUE",
-    label: "বকেয়া যোগ (Due)",
-    badgeClass:
-      "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/60 dark:text-rose-300",
-    desc: "প্রারম্ভিক বা পৃথক বকেয়া এন্ট্রি",
-  },
-];
-
-function getTransactionTypeInfo(type: TransactionType) {
-  return (
-    TRANSACTION_TYPES.find((t) => t.value === type) || {
-      value: type,
-      label: type,
-      badgeClass: "bg-slate-100 text-slate-700",
-      desc: "",
-    }
-  );
 }
 
 export default function CustomerDetailsView({
@@ -212,20 +171,16 @@ export default function CustomerDetailsView({
 
   // Form states
   const [formData, setFormData] = useState<{
-    type: TransactionType;
     amount: string | number;
     paid_amount: string | number;
     due_amount: string | number;
     description: string;
-    reference: string;
     date: string;
   }>({
-    type: "SALE",
     amount: "",
     paid_amount: "",
     due_amount: "",
     description: "",
-    reference: "",
     date: new Date().toISOString().split("T")[0],
   });
 
@@ -249,21 +204,14 @@ export default function CustomerDetailsView({
   const recalculateSummary = (list: Transaction[]) => {
     let sales = 0;
     let paid = 0;
-    let dueAddition = 0;
+    let netDue = 0;
 
     for (const t of list) {
-      if (t.type === "SALE") {
-        sales += t.amount || 0;
-        paid += t.paid_amount || 0;
-      } else if (t.type === "PAYMENT") {
-        paid += t.paid_amount || t.amount || 0;
-      } else if (t.type === "DUE") {
-        dueAddition += t.amount || t.due_amount || 0;
-        paid += t.paid_amount || 0;
-      }
+      sales += t.amount || 0;
+      paid += t.paid_amount || 0;
+      netDue += t.due_amount || 0;
     }
 
-    const netDue = Math.max(0, sales + dueAddition - paid);
     setSummary({
       totalSales: parseFloat(sales.toFixed(2)),
       totalPaid: parseFloat(paid.toFixed(2)),
@@ -279,19 +227,16 @@ export default function CustomerDetailsView({
       const matchesSearch =
         !term ||
         (tx.description && tx.description.toLowerCase().includes(term)) ||
-        (tx.reference && tx.reference.toLowerCase().includes(term)) ||
         String(tx.amount).includes(term) ||
         String(tx.due_amount).includes(term);
-
-      const matchesType = selectedTypeFilter === "all" || tx.type === selectedTypeFilter;
 
       const txDate = tx.date ? new Date(tx.date).toISOString().split("T")[0] : "";
       const matchesStart = !startDate || (txDate && txDate >= startDate);
       const matchesEnd = !endDate || (txDate && txDate <= endDate);
 
-      return matchesSearch && matchesType && matchesStart && matchesEnd;
+      return matchesSearch && matchesStart && matchesEnd;
     });
-  }, [transactionsList, searchTerm, selectedTypeFilter, startDate, endDate]);
+  }, [transactionsList, searchTerm, startDate, endDate]);
 
   // Real-time ledger summary for the selected export scope / dates
   const currentExportLedger = useMemo(() => {
@@ -428,7 +373,7 @@ export default function CustomerDetailsView({
     setFormData((prev) => ({
       ...prev,
       amount: val,
-      due_amount: prev.type === "SALE" ? Math.max(0, numAmount - numPaid) : prev.due_amount,
+      due_amount: Math.max(0, numAmount - numPaid),
     }));
   };
 
@@ -438,19 +383,17 @@ export default function CustomerDetailsView({
     setFormData((prev) => ({
       ...prev,
       paid_amount: val,
-      due_amount: prev.type === "SALE" ? Math.max(0, numAmount - numPaid) : prev.due_amount,
+      due_amount: Math.max(0, numAmount - numPaid),
     }));
   };
 
   // Open Add Dialog
   const openAddDialog = () => {
     setFormData({
-      type: "SALE",
       amount: "",
       paid_amount: "",
       due_amount: "",
       description: "",
-      reference: "",
       date: new Date().toISOString().split("T")[0],
     });
     setFormErrors({});
@@ -465,12 +408,10 @@ export default function CustomerDetailsView({
       : new Date().toISOString().split("T")[0];
 
     setFormData({
-      type: tx.type,
       amount: tx.amount,
       paid_amount: tx.paid_amount,
       due_amount: tx.due_amount,
       description: tx.description || "",
-      reference: tx.reference || "",
       date: dateStr,
     });
     setFormErrors({});
@@ -509,12 +450,10 @@ export default function CustomerDetailsView({
 
     const payload: TransactionInput = {
       customer_id: customer.id,
-      type: formData.type,
       amount: parseFloat(String(formData.amount)) || 0,
       paid_amount: parseFloat(String(formData.paid_amount)) || 0,
       due_amount: parseFloat(String(formData.due_amount)) || 0,
       description: formData.description.trim() || null,
-      reference: formData.reference.trim() || null,
       date: formData.date ? new Date(formData.date) : new Date(),
     };
 
@@ -538,12 +477,10 @@ export default function CustomerDetailsView({
     if (!activeTx || !validateForm()) return;
 
     const payload: Partial<TransactionInput> = {
-      type: formData.type,
       amount: parseFloat(String(formData.amount)) || 0,
       paid_amount: parseFloat(String(formData.paid_amount)) || 0,
       due_amount: parseFloat(String(formData.due_amount)) || 0,
       description: formData.description.trim() || null,
-      reference: formData.reference.trim() || null,
       date: formData.date ? new Date(formData.date) : new Date(),
     };
 
@@ -912,27 +849,6 @@ export default function CustomerDetailsView({
                   </button>
                 )}
               </div>
-
-              {/* Type and Preset Filter */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <RiFilterLine className="size-3.5" />
-                  <span>ধরন:</span>
-                </div>
-                <select
-                  value={selectedTypeFilter}
-                  onChange={(e) => {
-                    setSelectedTypeFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs focus:border-green-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  <option value="all">সকল ধরন ({transactionsList.length})</option>
-                  <option value="SALE">বিক্রয় (SALE)</option>
-                  <option value="PAYMENT">পরিশোধ (PAYMENT)</option>
-                  <option value="DUE">বকেয়া (DUE)</option>
-                </select>
-              </div>
             </div>
 
             {/* Bottom row: Bank-Style Date-wise Filter Bar */}
@@ -1004,12 +920,11 @@ export default function CustomerDetailsView({
                 <span className="text-[11px] text-slate-600 dark:text-slate-400">
                   ফিল্টারে: <strong>{filteredTransactions.length}</strong> টি লেনদেন
                 </span>
-                {(startDate || endDate || searchTerm || selectedTypeFilter !== "all") && (
+                {(startDate || endDate || searchTerm) && (
                   <button
                     type="button"
                     onClick={() => {
                       setSearchTerm("");
-                      setSelectedTypeFilter("all");
                       setStartDate("");
                       setEndDate("");
                       setDatePreset("all");
@@ -1035,12 +950,6 @@ export default function CustomerDetailsView({
                       তারিখ
                     </th>
                     <th scope="col" className="px-4 py-3 whitespace-nowrap">
-                      চালান / মেমো নং
-                    </th>
-                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
-                      ধরন
-                    </th>
-                    <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       বিবরণ / নোট
                     </th>
                     <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">
@@ -1060,7 +969,7 @@ export default function CustomerDetailsView({
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
                   {paginatedTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center">
+                      <td colSpan={6} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-500">
                           <RiFileTextLine className="mb-2 size-10 text-slate-300 dark:text-slate-700" />
                           <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
@@ -1081,7 +990,6 @@ export default function CustomerDetailsView({
                     </tr>
                   ) : (
                     paginatedTransactions.map((tx) => {
-                      const typeInfo = getTransactionTypeInfo(tx.type);
                       const formattedDate = tx.date
                         ? new Date(tx.date).toLocaleDateString("bn-BD", {
                             year: "numeric",
@@ -1098,20 +1006,6 @@ export default function CustomerDetailsView({
                           {/* Date */}
                           <td className="px-4 py-3 text-xs font-medium whitespace-nowrap text-slate-700 dark:text-slate-300">
                             {formattedDate}
-                          </td>
-
-                          {/* Reference / Invoice */}
-                          <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">
-                            {tx.reference || "—"}
-                          </td>
-
-                          {/* Type Badge */}
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${typeInfo.badgeClass}`}
-                            >
-                              {typeInfo.label}
-                            </span>
                           </td>
 
                           {/* Description */}
@@ -1214,36 +1108,11 @@ export default function CustomerDetailsView({
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              {/* Type Selector */}
-              <div className="space-y-1.5">
-                <Label htmlFor="tx-type">লেনদেনের ধরন (Transaction Type)</Label>
-                <select
-                  id="tx-type"
-                  value={formData.type}
-                  onChange={(e) => {
-                    const newType = e.target.value as TransactionType;
-                    setFormData((prev) => ({ ...prev, type: newType }));
-                  }}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-green-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                >
-                  {TRANSACTION_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label} - {t.desc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Amount & Paid in 2 columns */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="tx-amount">
-                    {formData.type === "SALE"
-                      ? "মোট বিক্রির পরিমাণ (৳)"
-                      : formData.type === "PAYMENT"
-                        ? "জমা / পরিশোধিত টাকা (৳)"
-                        : "বকেয়ার পরিমাণ (৳)"}{" "}
-                    <span className="text-rose-500">*</span>
+                    মোট টাকার পরিমাণ (৳) <span className="text-rose-500">*</span>
                   </Label>
                   <Input
                     id="tx-amount"
@@ -1305,17 +1174,6 @@ export default function CustomerDetailsView({
                 </div>
               </div>
 
-              {/* Invoice / Reference */}
-              <div className="space-y-1.5">
-                <Label htmlFor="tx-ref">চালান বা মেমো নম্বর (ঐচ্ছিক)</Label>
-                <Input
-                  id="tx-ref"
-                  placeholder="যেমন: INV-2026-001"
-                  value={formData.reference}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, reference: e.target.value }))}
-                />
-              </div>
-
               {/* Description / Note */}
               <div className="space-y-1.5">
                 <Label htmlFor="tx-desc">পণ্যের বিবরণ / বিশেষ নোট</Label>
@@ -1367,26 +1225,6 @@ export default function CustomerDetailsView({
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              {/* Type */}
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-tx-type">লেনদেনের ধরন</Label>
-                <select
-                  id="edit-tx-type"
-                  value={formData.type}
-                  onChange={(e) => {
-                    const newType = e.target.value as TransactionType;
-                    setFormData((prev) => ({ ...prev, type: newType }));
-                  }}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-blue-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                >
-                  {TRANSACTION_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Amount & Paid in 2 columns */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -1445,16 +1283,6 @@ export default function CustomerDetailsView({
                 </div>
               </div>
 
-              {/* Ref */}
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-tx-ref">চালান বা মেমো নম্বর</Label>
-                <Input
-                  id="edit-tx-ref"
-                  value={formData.reference}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, reference: e.target.value }))}
-                />
-              </div>
-
               {/* Description */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-tx-desc">পণ্যের বিবরণ / নোট</Label>
@@ -1499,8 +1327,8 @@ export default function CustomerDetailsView({
               ভাউচার মুছে ফেলার নিশ্চিতকরণ
             </DialogTitle>
             <DialogDescription>
-              আপনি কি নিশ্চিত যে আপনি <strong>{activeTx?.reference || "এই"}</strong> লেনদেনটি মুছে
-              ফেলতে চান? গ্রাহকের মোট হিসাব থেকে এটি বাদ দেওয়া হবে।
+              আপনি কি নিশ্চিত যে আপনি এই লেনদেনটি মুছে ফেলতে চান? গ্রাহকের মোট হিসাব থেকে এটি বাদ
+              দেওয়া হবে।
             </DialogDescription>
           </DialogHeader>
 
@@ -1548,18 +1376,7 @@ export default function CustomerDetailsView({
                     </h4>
                     <p className="text-xs text-slate-500">{customer.phone || "ফোন নম্বর নেই"}</p>
                   </div>
-                  <div className="text-right">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        getTransactionTypeInfo(activeTx.type).badgeClass
-                      }`}
-                    >
-                      {getTransactionTypeInfo(activeTx.type).label}
-                    </span>
-                    <p className="mt-1 font-mono text-[11px] text-slate-400">
-                      মেমো: {activeTx.reference || "N/A"}
-                    </p>
-                  </div>
+                  <div className="text-right"></div>
                 </div>
 
                 <div className="space-y-2 py-3 text-xs">

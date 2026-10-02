@@ -62,22 +62,16 @@ model Customer {
   @@map("customers")
 }
 
-enum TransactionType {
-  SALE
-  PAYMENT
-  DUE
-}
+
 
 model Transaction {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   customer_id String          @db.ObjectId @map("customer_id")
   customer    Customer        @relation(fields: [customer_id], references: [id], onDelete: Cascade)
-  type        TransactionType @default(SALE)
   amount      Float           @default(0.0)
   paid_amount Float           @default(0.0) @map("paid_amount")
   due_amount  Float           @default(0.0) @map("due_amount")
   description String?
-  reference   String?
   date        DateTime        @default(now())
   created_at  DateTime        @default(now()) @map("created_at")
   updated_at  DateTime        @updatedAt @map("updated_at")
