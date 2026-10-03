@@ -1,6 +1,8 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { calculateAndUpdateCustomerDue } from "@/lib/customers";
 import { prisma } from "@/lib/prisma";
+import { calculateProductReportData } from "@/lib/products";
 
 /**
  * Safe accessor for prisma.transaction model that handles Next.js hot-reload stale client cache in dev.
@@ -37,8 +39,11 @@ export interface TransactionInput {
 
 export interface GetTransactionsOptions {
   search?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
   limit?: number;
+  skip?: number;
 }
 
 export interface CustomerTransactionSummary {
@@ -67,6 +72,11 @@ export interface CentralSalesReportMetrics {
   collectionRate: number;
   totalTransactions: number;
   avgSaleAmount: number;
+  simpleProfit: number;
+  otherCosts: number;
+  netProfit: number;
+  totalProductSaleWeight?: number;
+  totalProductSalePrice?: number;
 }
 
 export interface DailySalesTrend {
@@ -125,25 +135,33 @@ export async function getTransactionsByCustomerId(
   try {
     const page = Math.max(1, options.page || 1);
     const limit = Math.max(1, options.limit || 20);
-    const skip = (page - 1) * limit;
+    const skip = options.skip !== undefined ? options.skip : (page - 1) * limit;
 
     const whereClause: {
       customer_id: string;
-      AND?: Array<{
-        OR?: Array<{
-          description?: { contains: string; mode: "insensitive" };
-        }>;
-      }>;
+      AND?: Array<Record<string, unknown>>;
     } = {
       customer_id: customerId,
     };
 
-    const conditions = [];
+    const conditions: Array<Record<string, unknown>> = [];
 
     if (options.search?.trim()) {
       const term = options.search.trim();
       conditions.push({
         OR: [{ description: { contains: term, mode: "insensitive" as const } }],
+      });
+    }
+
+    if (options.startDate) {
+      conditions.push({
+        date: { gte: new Date(`${options.startDate}T00:00:00.000Z`) },
+      });
+    }
+
+    if (options.endDate) {
+      conditions.push({
+        date: { lte: new Date(`${options.endDate}T23:59:59.999Z`) },
       });
     }
 
@@ -261,16 +279,20 @@ export async function getCustomerTransactionSummary(
     });
 
     let totalSales = 0;
+    let totalDebit = 0;
     let totalPaid = 0;
-    let totalDueAddition = 0;
 
     for (const t of transactions) {
-      totalSales += t.amount || 0;
-      totalPaid += t.paid_amount || 0;
-      totalDueAddition += t.due_amount || 0;
+      const amount = Number(t.amount) || 0;
+      const due = Number(t.due_amount) || 0;
+      const paid = Number(t.paid_amount) || 0;
+
+      totalSales += amount;
+      totalDebit += amount > 0 ? amount : due > 0 && paid === 0 ? due : 0;
+      totalPaid += paid;
     }
 
-    const netDue = Math.max(0, totalSales + totalDueAddition - totalPaid);
+    const netDue = Math.max(0, totalDebit - totalPaid);
 
     return {
       totalSales: parseFloat(totalSales.toFixed(2)),
@@ -290,7 +312,7 @@ export async function getCustomerTransactionSummary(
 }
 
 /**
- * Create a new manual transaction for a customer.
+ * Create a new manual transaction for a customer with automatic total_due update & rollback.
  */
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
   if (!input.customer_id) {
@@ -314,13 +336,7 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
 
   const date = input.date ? new Date(input.date) : new Date();
 
-  const txModel = getTxModel();
-  if (!txModel) {
-    throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
-    );
-  }
-  const record = await txModel.create({
+  const record = await prisma.transaction.create({
     data: {
       customer_id: input.customer_id,
       amount,
@@ -330,6 +346,15 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
       date,
     },
   });
+
+  // Calculate and update customer's total due with rollback safety
+  try {
+    await calculateAndUpdateCustomerDue(input.customer_id);
+  } catch (error) {
+    // Rollback created transaction if customer due update failed
+    await prisma.transaction.delete({ where: { id: record.id } }).catch(() => {});
+    throw error;
+  }
 
   return {
     id: record.id,
@@ -345,19 +370,13 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
 }
 
 /**
- * Update an existing transaction.
+ * Update an existing transaction with automatic total_due update & rollback.
  */
 export async function updateTransaction(
   id: string,
   input: Partial<TransactionInput>
 ): Promise<Transaction> {
-  const txModel = getTxModel();
-  if (!txModel) {
-    throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
-    );
-  }
-  const existing = await txModel.findUnique({ where: { id } });
+  const existing = await prisma.transaction.findUnique({ where: { id } });
   if (!existing) {
     throw new Error("লেনদেন খুঁজে পাওয়া যায়নি");
   }
@@ -390,10 +409,29 @@ export async function updateTransaction(
     dataToUpdate.date = input.date ? new Date(input.date) : new Date();
   }
 
-  const updated = await txModel.update({
+  const updated = await prisma.transaction.update({
     where: { id },
     data: dataToUpdate,
   });
+
+  try {
+    await calculateAndUpdateCustomerDue(updated.customer_id);
+  } catch (error) {
+    // Rollback to previous transaction state if customer due update fails
+    await prisma.transaction
+      .update({
+        where: { id },
+        data: {
+          amount: existing.amount,
+          paid_amount: existing.paid_amount,
+          due_amount: existing.due_amount,
+          description: existing.description,
+          date: existing.date,
+        },
+      })
+      .catch(() => {});
+    throw error;
+  }
 
   return {
     id: updated.id,
@@ -409,21 +447,36 @@ export async function updateTransaction(
 }
 
 /**
- * Delete a transaction.
+ * Delete a transaction with automatic total_due update & rollback.
  */
 export async function deleteTransaction(id: string): Promise<boolean> {
-  const txModel = getTxModel();
-  if (!txModel) {
-    throw new Error(
-      "Prisma Transaction মডেলটি পাওয়া যায়নি। অনুগ্রহ করে dev সার্ভারটি রিস্টার্ট করুন ('npm run dev')।"
-    );
-  }
-  const existing = await txModel.findUnique({ where: { id } });
+  const existing = await prisma.transaction.findUnique({ where: { id } });
   if (!existing) {
     throw new Error("লেনদেন খুঁজে পাওয়া যায়নি");
   }
 
-  await txModel.delete({ where: { id } });
+  await prisma.transaction.delete({ where: { id } });
+
+  try {
+    await calculateAndUpdateCustomerDue(existing.customer_id);
+  } catch (error) {
+    // Rollback: recreate transaction if recalculation failed
+    await prisma.transaction
+      .create({
+        data: {
+          id: existing.id,
+          customer_id: existing.customer_id,
+          amount: existing.amount,
+          paid_amount: existing.paid_amount,
+          due_amount: existing.due_amount,
+          description: existing.description,
+          date: existing.date,
+        },
+      })
+      .catch(() => {});
+    throw error;
+  }
+
   return true;
 }
 
@@ -448,6 +501,9 @@ export async function getCentralSalesReportData(
           collectionRate: 0,
           totalTransactions: 0,
           avgSaleAmount: 0,
+          simpleProfit: 0,
+          otherCosts: 0,
+          netProfit: 0,
         },
         transactions: [],
         total: 0,
@@ -460,7 +516,7 @@ export async function getCentralSalesReportData(
       };
     }
 
-    // 1. Build where conditions
+    // 1. Build where conditions for transactions
     const andConditions: Prisma.TransactionWhereInput[] = [];
 
     // Date range
@@ -520,6 +576,7 @@ export async function getCentralSalesReportData(
             name: true,
             phone: true,
             address: true,
+            total_due: true,
           },
         },
       },
@@ -578,12 +635,11 @@ export async function getCentralSalesReportData(
           phone: r.customer.phone,
           totalSales: 0,
           totalPaid: 0,
-          totalDue: 0,
+          totalDue: Number(r.customer.total_due) || 0,
           txCount: 0,
         };
         cSummary.totalSales += itemSale;
         cSummary.totalPaid += itemCollected;
-        cSummary.totalDue += itemDue;
         cSummary.txCount++;
         customerMap.set(cId, cSummary);
       }
@@ -596,6 +652,60 @@ export async function getCentralSalesReportData(
       totalSales > 0 ? parseFloat(((totalCollected / totalSales) * 100).toFixed(1)) : 0;
     const avgSaleAmount =
       allRecords.length > 0 ? parseFloat((totalSales / allRecords.length).toFixed(2)) : 0;
+
+    // 3. Compute Product Simple Profit (সরল মুনাফা)
+    const products = await prisma.product.findMany({
+      include: {
+        transactions: {
+          orderBy: { date: "desc" },
+        },
+      },
+    });
+
+    let simpleProfit = 0;
+    let totalProductSaleWeight = 0;
+    let totalProductSalePrice = 0;
+
+    for (const p of products) {
+      const pReport = calculateProductReportData(
+        p.transactions,
+        options.startDate || undefined,
+        options.endDate || undefined
+      );
+      simpleProfit += pReport.profit;
+      totalProductSaleWeight += pReport.saleWeight;
+      totalProductSalePrice += pReport.salePrice;
+    }
+
+    // 4. Compute Other Costs (অন্যান্য খরচ)
+    const otherCostConditions: Prisma.OtherCostWhereInput[] = [];
+    if (options.startDate && options.endDate) {
+      const start = new Date(options.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(options.endDate);
+      end.setHours(23, 59, 59, 999);
+      otherCostConditions.push({ date: { gte: start, lte: end } });
+    } else if (options.startDate) {
+      const start = new Date(options.startDate);
+      start.setHours(0, 0, 0, 0);
+      otherCostConditions.push({ date: { gte: start } });
+    } else if (options.endDate) {
+      const end = new Date(options.endDate);
+      end.setHours(23, 59, 59, 999);
+      otherCostConditions.push({ date: { lte: end } });
+    }
+
+    const otherCostWhereClause: Prisma.OtherCostWhereInput =
+      otherCostConditions.length > 0 ? { AND: otherCostConditions } : {};
+
+    const otherCostsList = await prisma.otherCost.findMany({
+      where: otherCostWhereClause,
+    });
+
+    const otherCosts = otherCostsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+
+    // 5. Compute Net Profit (নিট লাভ = সরল মুনাফা - অন্যান্য খরচ)
+    const netProfit = simpleProfit - otherCosts;
 
     // Convert dailyMap to sorted array
     const dailyTrend: DailySalesTrend[] = Array.from(dailyMap.entries())
@@ -637,7 +747,7 @@ export async function getCentralSalesReportData(
         totalDue: parseFloat(c.totalDue.toFixed(2)),
       }));
 
-    // 3. Paginated Transactions
+    // 6. Paginated Transactions
     const total = allRecords.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const skip = (page - 1) * limit;
@@ -672,6 +782,11 @@ export async function getCentralSalesReportData(
         collectionRate,
         totalTransactions: total,
         avgSaleAmount,
+        simpleProfit: parseFloat(simpleProfit.toFixed(2)),
+        otherCosts: parseFloat(otherCosts.toFixed(2)),
+        netProfit: parseFloat(netProfit.toFixed(2)),
+        totalProductSaleWeight: parseFloat(totalProductSaleWeight.toFixed(2)),
+        totalProductSalePrice: parseFloat(totalProductSalePrice.toFixed(2)),
       },
       transactions,
       total,
@@ -693,6 +808,9 @@ export async function getCentralSalesReportData(
         collectionRate: 0,
         totalTransactions: 0,
         avgSaleAmount: 0,
+        simpleProfit: 0,
+        otherCosts: 0,
+        netProfit: 0,
       },
       transactions: [],
       total: 0,

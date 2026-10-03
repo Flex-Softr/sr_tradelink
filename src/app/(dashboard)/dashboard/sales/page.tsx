@@ -23,19 +23,9 @@ export default async function SalesReportPage() {
     redirect("/login?callbackUrl=/dashboard/sales");
   }
 
-  // Compute current month date range for initial SSR data
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const startDate = `${yyyy}-${mm}-01`;
-  const endDate = `${yyyy}-${mm}-${dd}`;
-
   const [initialCustomers, initialReport] = await Promise.all([
     getCustomers(),
     getCentralSalesReportData({
-      startDate,
-      endDate,
       page: 1,
       limit: 20,
     }),

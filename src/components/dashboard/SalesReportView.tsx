@@ -2,14 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import Link from "next/link";
-
 import {
   RiArrowDownLine,
   RiArrowRightUpLine,
   RiCalendarLine,
   RiCheckDoubleLine,
   RiCloseLine,
+  RiCoinsLine,
   RiDownload2Line,
   RiExchangeDollarLine,
   RiFileExcelLine,
@@ -20,9 +19,6 @@ import {
   RiMoneyDollarCircleLine,
   RiPrinterLine,
   RiRefreshLine,
-  RiSearchLine,
-  RiUser3Line,
-  RiVipCrownLine,
   RiWallet3Line,
 } from "@remixicon/react";
 
@@ -98,12 +94,10 @@ export default function SalesReportView({
   initialCustomers = [],
   initialData,
 }: SalesReportViewProps) {
-  const defaultDates = getPresetDates("month");
-
-  // Filter States
-  const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [startDate, setStartDate] = useState<string>(defaultDates.start);
-  const [endDate, setEndDate] = useState<string>(defaultDates.end);
+  // Filter States: Default to "all" so all data is loaded and calculated
+  const [preset, setPreset] = useState<PeriodPreset>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -120,7 +114,6 @@ export default function SalesReportView({
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
-  const [topTab, setTopTab] = useState<"sales" | "due">("sales");
 
   // Auto-dismiss feedback after 4 seconds
   useEffect(() => {
@@ -137,8 +130,6 @@ export default function SalesReportView({
       void (async () => {
         try {
           const res = await fetchCentralSalesReportAction({
-            startDate: defaultDates.start,
-            endDate: defaultDates.end,
             page: 1,
             limit: pageSize,
           });
@@ -157,7 +148,7 @@ export default function SalesReportView({
         active = false;
       };
     }
-  }, [initialData, defaultDates.start, defaultDates.end]);
+  }, [initialData]);
 
   // Fetch Report Data
   const loadReportData = (page = 1, overrides?: Partial<GetCentralSalesReportOptions>) => {
@@ -207,21 +198,15 @@ export default function SalesReportView({
     loadReportData(1, { customerId: newCustomerId });
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    loadReportData(1);
-  };
-
   const handleResetFilters = () => {
-    const dates = getPresetDates("month");
-    setPreset("month");
-    setStartDate(dates.start);
-    setEndDate(dates.end);
+    setPreset("all");
+    setStartDate("");
+    setEndDate("");
     setSelectedCustomerId("all");
     setSearchQuery("");
     loadReportData(1, {
-      startDate: dates.start,
-      endDate: dates.end,
+      startDate: undefined,
+      endDate: undefined,
       customerId: "all",
       search: undefined,
     });
@@ -315,16 +300,14 @@ export default function SalesReportView({
     netTurnover: 0,
     collectionRate: 0,
     totalTransactions: 0,
-    saleCount: 0,
-    paymentCount: 0,
-    dueCount: 0,
     avgSaleAmount: 0,
+    simpleProfit: 0,
+    otherCosts: 0,
+    netProfit: 0,
   };
 
   const transactions = reportData?.transactions || [];
   const dailyTrend = reportData?.dailyTrend || [];
-  const topBySales = reportData?.topCustomersBySales || [];
-  const topByDue = reportData?.topCustomersByDue || [];
 
   // Find max daily amount for chart scaling
   const maxDayAmount = Math.max(
@@ -529,8 +512,8 @@ export default function SalesReportView({
         </CardContent>
       </Card>
 
-      {/* 4 Hero KPI Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 6 Hero KPI Cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Sales */}
         <Card className="border-border/60 bg-linear-to-br from-emerald-50/50 to-white shadow-xs dark:from-emerald-950/20 dark:to-slate-900">
           <CardContent className="p-4 sm:p-5">
@@ -616,7 +599,7 @@ export default function SalesReportView({
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>গড় লেনদেন আকার:</span>
+              <span>গড় চালান মূল্য:</span>
               <span
                 className={`font-bold ${
                   metrics.totalDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-600"
@@ -628,26 +611,100 @@ export default function SalesReportView({
           </CardContent>
         </Card>
 
-        {/* Total Transactions & Ticket Size */}
+        {/* সরল মুনাফা (Simple Profit) */}
+        <Card className="border-border/60 bg-linear-to-br from-amber-50/60 via-white to-amber-50/30 shadow-xs dark:from-amber-950/20 dark:via-slate-900 dark:to-amber-950/10">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                সরল মুনাফা (Simple Profit)
+              </span>
+              <div className="flex size-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300">
+                <RiCoinsLine className="size-5" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <h3 className="text-2xl font-black tracking-tight text-amber-700 sm:text-3xl dark:text-amber-400">
+                ৳ {formatMoney(metrics.simpleProfit)}
+              </h3>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>হিসাব ভিত্তি:</span>
+              <span className="font-semibold text-amber-800 dark:text-amber-300">
+                পণ্য বিক্রয় ও ক্রয়মূল্য লাভ
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* মোট অন্যান্য খরচ (Total Other Costs) */}
         <Card className="border-border/60 bg-linear-to-br from-slate-50 to-white shadow-xs dark:from-slate-900/60 dark:to-slate-900">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                মোট লেনদেন সংখ্যা
+                মোট অন্যান্য খরচ (Other Costs)
               </span>
-              <div className="flex size-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                 <RiFileList3Line className="size-5" />
               </div>
             </div>
             <div className="mt-2">
-              <h3 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-                {metrics.totalTransactions} টি
+              <h3 className="text-2xl font-black tracking-tight text-slate-800 sm:text-3xl dark:text-slate-100">
+                ৳ {formatMoney(metrics.otherCosts)}
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>গড় চালান মূল্য:</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">
-                ৳ {formatMoney(metrics.avgSaleAmount)}
+              <span>ব্যয়ের খাত:</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                অফিস, পরিবহন ও বিবিধ খরচ
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* নিট লাভ (Net Profit) */}
+        <Card
+          className={`border-border/60 shadow-xs transition-all ${
+            metrics.netProfit >= 0
+              ? "bg-linear-to-br from-emerald-50/70 via-white to-teal-50/40 dark:from-emerald-950/30 dark:via-slate-900 dark:to-teal-950/20"
+              : "bg-linear-to-br from-rose-50/70 via-white to-red-50/40 dark:from-rose-950/30 dark:via-slate-900 dark:to-red-950/20"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                নিট লাভ (Net Profit)
+              </span>
+              <div
+                className={`flex size-9 items-center justify-center rounded-lg ${
+                  metrics.netProfit >= 0
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300"
+                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300"
+                }`}
+              >
+                <RiExchangeDollarLine className="size-5" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <h3
+                className={`text-2xl font-black tracking-tight sm:text-3xl ${
+                  metrics.netProfit >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-rose-700 dark:text-rose-400"
+                }`}
+              >
+                ৳ {formatMoney(metrics.netProfit)}
+              </h3>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>চূড়ান্ত স্থিতি:</span>
+              <span
+                className={`font-bold ${
+                  metrics.netProfit >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-rose-700 dark:text-rose-400"
+                }`}
+              >
+                {metrics.netProfit >= 0 ? "✓ নিট মুনাফা অর্জিত" : "⚠ নিট লোকসান"}
               </span>
             </div>
           </CardContent>
@@ -727,412 +784,75 @@ export default function SalesReportView({
         </Card>
       )}
 
-      {/* Two Comparative Analytics Panels */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Panel 1: Breakdown by Transaction Type & Customer Category */}
-        <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
-          <CardHeader className="border-b border-slate-100 pb-3 dark:border-slate-800/80">
-            <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
-              লেনদেন ও গ্রাহক ধরণ বিশ্লেষণ (Breakdown by Category)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            {/* Transaction Types */}
-            <div>
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-600 dark:text-slate-400">
-                  বিক্রয় চালান (Sales)
-                </span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  ৳ {formatMoney(metrics.totalSales)}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className="h-full bg-emerald-600"
-                  style={{
-                    width: `${metrics.totalSales > 0 ? 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-600 dark:text-slate-400">
-                  নগদ আদায় / কিস্তি জমা (Payments)
-                </span>
-                <span className="font-bold text-green-700 dark:text-green-400">
-                  ৳ {formatMoney(metrics.totalCollected)}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className="h-full bg-blue-600"
-                  style={{
-                    width: `${Math.min(100, metrics.collectionRate)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-600 dark:text-slate-400">
-                  বকেয়া সমন্বয় (Due Adjustment)
-                </span>
-                <span className="font-bold text-rose-700 dark:text-rose-400">
-                  ৳ {formatMoney(metrics.totalDue)}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className="h-full bg-rose-500"
-                  style={{
-                    width: `${
-                      metrics.totalSales > 0
-                        ? Math.min(100, (metrics.totalDue / metrics.totalSales) * 100)
-                        : 0
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Panel 2: Top Customers by Sales vs Due Monitoring */}
-        <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setTopTab("sales")}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  topTab === "sales"
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
-                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-                }`}
-              >
-                শীর্ষ ক্রেতা (Top Buyers)
-              </button>
-              <button
-                type="button"
-                onClick={() => setTopTab("due")}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  topTab === "due"
-                    ? "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300"
-                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-                }`}
-              >
-                বকেয়াপ্রাপ্ত গ্রাহক (Pending Due)
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-3">
-            {topTab === "sales" ? (
-              topBySales.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400">
-                  কোনো বিক্রয়ের রেকর্ড পাওয়া যায়নি
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {topBySales.map((cust, idx) => (
-                    <div
-                      key={cust.customerId}
-                      className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-2.5 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex size-6 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <Link
-                              href={`/dashboard/customers/${cust.customerId}`}
-                              className="text-xs font-bold text-slate-900 hover:text-emerald-600 dark:text-white"
-                            >
-                              {cust.customerName}
-                            </Link>
-                          </div>
-                          <span className="text-[11px] text-slate-400">{cust.phone || "-"}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs font-black text-slate-900 dark:text-white">
-                          ৳ {formatMoney(cust.totalSales)}
-                        </div>
-                        <span className="text-[10px] text-slate-500">চালান: {cust.txCount} টি</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : topByDue.length === 0 ? (
-              <div className="py-6 text-center text-xs font-semibold text-emerald-600">
-                ✓ কোনো অনাদায়ী বকেয়া গ্রাহক নেই!
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {topByDue.map((cust, idx) => (
-                  <div
-                    key={cust.customerId}
-                    className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/30 p-2.5 transition hover:bg-rose-50/60 dark:border-rose-950/40 dark:bg-rose-950/10"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex size-6 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-800 dark:bg-rose-900/60 dark:text-rose-300">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <Link
-                            href={`/dashboard/customers/${cust.customerId}`}
-                            className="text-xs font-bold text-slate-900 hover:text-rose-600 dark:text-white"
-                          >
-                            {cust.customerName}
-                          </Link>
-                        </div>
-                        <span className="text-[11px] text-slate-500">{cust.phone || "-"}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-black text-rose-700 dark:text-rose-400">
-                        ৳ {formatMoney(cust.totalDue)}
-                      </div>
-                      <Link
-                        href={`/dashboard/customers/${cust.customerId}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-rose-600 hover:underline"
-                      >
-                        আদায় করুন <RiArrowRightUpLine className="size-3" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Central Transactions Detailed Table */}
+      {/* Analytics Panel: Breakdown by Transaction Type & Customer Category */}
       <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
-        <CardHeader className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center dark:border-slate-800/80">
+        <CardHeader className="border-b border-slate-100 pb-3 dark:border-slate-800/80">
+          <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
+            লেনদেন ও গ্রাহক ধরণ বিশ্লেষণ (Breakdown by Category)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-4">
+          {/* Transaction Types */}
           <div>
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-              সার্বিক লেনদেন খতিয়ান (Central Transactions Ledger)
-            </CardTitle>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              সর্বমোট {reportData?.total || 0} টি লেনদেনের বিস্তারিত বিবরণ ও হিসাব
-            </p>
-          </div>
-
-          {/* Search form */}
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-            <div className="relative">
-              <RiSearchLine className="absolute top-2.5 left-2.5 size-4 text-slate-400" />
-              <Input
-                type="text"
-                placeholder="গ্রাহক, মোবাইল, মেমো নং..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-60 pl-8 text-xs"
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-600 dark:text-slate-400">
+                বিক্রয় চালান (Sales)
+              </span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                ৳ {formatMoney(metrics.totalSales)}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full bg-emerald-600"
+                style={{
+                  width: `${metrics.totalSales > 0 ? 100 : 0}%`,
+                }}
               />
             </div>
-            <Button type="submit" size="sm" variant="secondary" className="h-9 text-xs">
-              খুঁজুন
-            </Button>
-          </form>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
-                <tr>
-                  <th className="py-3 pr-2 pl-4 text-center">ক্র.</th>
-                  <th className="px-3 py-3">তারিখ ও সময়</th>
-                  <th className="px-3 py-3">গ্রাহকের নাম ও যোগাযোগ</th>
-                  <th className="px-3 py-3 text-right">মোট মূল্য</th>
-                  <th className="px-3 py-3 text-right">পরিশোধ</th>
-                  <th className="px-3 py-3 text-right">অবশিষ্ট বকেয়া</th>
-                  <th className="px-3 py-3 text-center">স্ট্যাটাস</th>
-                  <th className="py-3 pr-4 pl-3 text-center">অ্যাকশন</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      <RiRefreshLine className="mx-auto size-6 animate-spin text-emerald-600" />
-                      <span className="mt-2 block text-xs">বিক্রয় ডেটা লোড হচ্ছে...</span>
-                    </td>
-                  </tr>
-                ) : transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center">
-                      <RiFileList3Line className="mx-auto size-9 text-slate-300 dark:text-slate-600" />
-                      <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        কোনো লেনদেন পাওয়া যায়নি
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        তারিখ বা সার্চ ফিল্টার পরিবর্তন করে পুনরায় চেষ্টা করুন।
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetFilters}
-                        className="mt-3 text-xs"
-                      >
-                        ফিল্টার রিসেট করুন
-                      </Button>
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((tx, index) => {
-                    const serialNumber = (currentPage - 1) * pageSize + index + 1;
-                    const isFullyPaid = tx.due_amount === 0 || tx.paid_amount >= tx.amount;
-                    const isPartial = !isFullyPaid && tx.paid_amount > 0;
-
-                    return (
-                      <tr
-                        key={tx.id}
-                        className="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-                      >
-                        <td className="py-3 pr-2 pl-4 text-center font-mono text-slate-400">
-                          {serialNumber}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">
-                            {formatDateStr(tx.date)}
-                          </div>
-                          <span className="text-[10px] text-slate-400">
-                            {new Date(tx.date).toLocaleTimeString("bn-BD", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">
-                          {tx.customer ? (
-                            <div>
-                              <div className="flex items-center gap-1">
-                                <Link
-                                  href={`/dashboard/customers/${tx.customer.id}`}
-                                  className="font-bold text-slate-900 hover:text-emerald-600 dark:text-white"
-                                >
-                                  {tx.customer.name}
-                                </Link>
-                              </div>
-                              <div className="text-[11px] text-slate-400">
-                                {tx.customer.phone || "-"}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 italic">গ্রাহকের নাম নেই</span>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-white">
-                          ৳ {formatMoney(tx.amount)}
-                        </td>
-                        <td className="px-3 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400">
-                          ৳ {formatMoney(tx.paid_amount)}
-                        </td>
-                        <td
-                          className={`px-3 py-3 text-right font-bold ${
-                            tx.due_amount > 0
-                              ? "text-rose-600 dark:text-rose-400"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          ৳ {formatMoney(tx.due_amount)}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {isFullyPaid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-green-600/20 ring-inset dark:bg-green-950/40 dark:text-green-300">
-                              পরিশোধিত
-                            </span>
-                          ) : isPartial ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-600/20 ring-inset dark:bg-amber-950/40 dark:text-amber-300">
-                              আংশিক পরিশোধ
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-600/20 ring-inset dark:bg-rose-950/40 dark:text-rose-300">
-                              সম্পূর্ণ বকেয়া
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 pr-4 pl-3 text-center">
-                          {tx.customer && (
-                            <Link
-                              href={`/dashboard/customers/${tx.customer.id}`}
-                              className="inline-flex items-center gap-1 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
-                              title="গ্রাহকের খতিয়ান দেখুন"
-                            >
-                              <RiUser3Line className="size-4" />
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
           </div>
 
-          {/* Pagination */}
-          {reportData && reportData.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-slate-800">
-              <span className="text-xs text-slate-500">
-                পৃষ্ঠা {currentPage} / {reportData.totalPages} (মোট {reportData.total} টি রেকর্ড)
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-600 dark:text-slate-400">
+                নগদ আদায় / কিস্তি জমা (Payments)
               </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1 || isLoading}
-                  onClick={() => loadReportData(currentPage - 1)}
-                  className="h-8 text-xs"
-                >
-                  পূর্ববর্তী
-                </Button>
-                {Array.from({ length: Math.min(5, reportData.totalPages) }, (_, i) => {
-                  let pageNum = i + 1;
-                  if (reportData.totalPages > 5 && currentPage > 3) {
-                    pageNum = currentPage - 2 + i;
-                    if (pageNum > reportData.totalPages) {
-                      pageNum = reportData.totalPages - (4 - i);
-                    }
-                  }
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => loadReportData(pageNum)}
-                      className={`size-8 p-0 text-xs ${
-                        currentPage === pageNum
-                          ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                          : ""
-                      }`}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= reportData.totalPages || isLoading}
-                  onClick={() => loadReportData(currentPage + 1)}
-                  className="h-8 text-xs"
-                >
-                  পরবর্তী
-                </Button>
-              </div>
+              <span className="font-bold text-green-700 dark:text-green-400">
+                ৳ {formatMoney(metrics.totalCollected)}
+              </span>
             </div>
-          )}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full bg-blue-600"
+                style={{
+                  width: `${Math.min(100, metrics.collectionRate)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-600 dark:text-slate-400">
+                বকেয়া সমন্বয় (Due Adjustment)
+              </span>
+              <span className="font-bold text-rose-700 dark:text-rose-400">
+                ৳ {formatMoney(metrics.totalDue)}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full bg-rose-500"
+                style={{
+                  width: `${
+                    metrics.totalSales > 0
+                      ? Math.min(100, (metrics.totalDue / metrics.totalSales) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
