@@ -14,7 +14,6 @@ import {
 import { signOut } from "next-auth/react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface UserDropdownProps {
@@ -31,7 +30,6 @@ export default function UserDropdown({ user }: UserDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "A";
-  const userRole = user?.role || "ADMIN";
   const userName = user?.name || "অ্যাডমিন";
   const userEmail = user?.email || "";
 
@@ -93,17 +91,9 @@ export default function UserDropdown({ user }: UserDropdownProps) {
               </AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate text-sm font-semibold whitespace-nowrap text-slate-900 dark:text-white">
-                  {userName}
-                </span>
-                <Badge
-                  variant="secondary"
-                  className="bg-green-50 px-1.5 py-0 text-[10px] font-semibold whitespace-nowrap text-green-700 uppercase dark:bg-green-950/60 dark:text-green-400"
-                >
-                  {userRole}
-                </Badge>
-              </div>
+              <span className="truncate text-sm font-semibold whitespace-nowrap text-slate-900 dark:text-white">
+                {userName}
+              </span>
               {userEmail && (
                 <span className="truncate text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
                   {userEmail}

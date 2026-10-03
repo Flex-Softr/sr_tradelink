@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 
 import { COMPANY_INFO } from "@/lib/company-info";
 import type { Customer } from "@/lib/customers";
+import { type OtherCost, getCategoryLabel } from "@/lib/other-costs";
 import type { Party, PartyStatementLedgerData } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
@@ -21,6 +22,7 @@ export interface StatementLedgerData {
   entries: LedgerEntry[];
   totalDebit: number;
   totalCredit: number;
+  totalDue: number;
   closingBalance: number;
   transactionCount: number;
   startDate?: string;
@@ -125,6 +127,12 @@ export function calculateStatementLedger(
     };
   });
 
+  const totalDue = parseFloat(
+    entries
+      .reduce((acc, e) => acc + (Number(e.due_amount) || Math.max(0, e.debit - e.credit)), 0)
+      .toFixed(2)
+  );
+
   const closingBalance = Math.max(
     0,
     parseFloat((openingBalance + totalDebit - totalCredit).toFixed(2))
@@ -135,6 +143,7 @@ export function calculateStatementLedger(
     entries,
     totalDebit: parseFloat(totalDebit.toFixed(2)),
     totalCredit: parseFloat(totalCredit.toFixed(2)),
+    totalDue,
     closingBalance,
     transactionCount: entries.length,
     startDate,
@@ -175,6 +184,7 @@ export function generateBankStatementHTML(options: {
         <td style="padding: 7px 8px; color: #475569;">পূর্ববর্তী সময়কালের অবশিষ্ট জের (Balance B/F)</td>
         <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
         <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
+        <td style="padding: 7px 8px; text-align: right; color: #64748b;">-</td>
         <td style="padding: 7px 8px; text-align: right; font-weight: 700; color: #0f172a;">৳ ${formatMoney(ledger.openingBalance)}</td>
       </tr>
     `;
@@ -183,7 +193,7 @@ export function generateBankStatementHTML(options: {
   if (ledger.entries.length === 0) {
     rowsHtml += `
       <tr>
-        <td colspan="6" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+        <td colspan="7" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
           নির্বাচিত সময়কালের মধ্যে কোনো লেনদেনের রেকর্ড পাওয়া যায়নি।
         </td>
       </tr>
@@ -191,11 +201,12 @@ export function generateBankStatementHTML(options: {
   } else {
     ledger.entries.forEach((entry, idx) => {
       const isEven = idx % 2 === 0;
+      const due = Number(entry.due_amount) || Math.max(0, entry.debit - entry.credit);
       rowsHtml += `
         <tr style="background-color: ${isEven ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
           <td style="padding: 7px 8px; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
           <td style="padding: 7px 8px; white-space: nowrap; font-size: 11px;">${formatDateStr(entry.date)}</td>
-          <td style="padding: 7px 8px; font-size: 11px; color: #334155; max-width: 200px; word-break: break-word;">
+          <td style="padding: 7px 8px; font-size: 11px; color: #334155; max-width: 180px; word-break: break-word;">
             ${entry.description || "-"}
           </td>
           <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 600; color: #1d4ed8;">
@@ -203,6 +214,9 @@ export function generateBankStatementHTML(options: {
           </td>
           <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 600; color: #047857;">
             ${entry.credit > 0 ? `৳ ${formatMoney(entry.credit)}` : "-"}
+          </td>
+          <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 600; color: ${due > 0 ? "#b91c1c" : "#64748b"};">
+            ${due > 0 ? `৳ ${formatMoney(due)}` : "৳ ০.০০"}
           </td>
           <td style="padding: 7px 8px; text-align: right; font-size: 11.5px; font-weight: 700; color: ${entry.runningBalance > 0 ? "#b91c1c" : "#0f172a"};">
             ৳ ${formatMoney(entry.runningBalance)}
@@ -594,11 +608,12 @@ export function generateBankStatementHTML(options: {
       <thead>
         <tr>
           <th style="width: 32px; text-align: center;">ক্র.</th>
-          <th style="width: 80px; text-align: left;">তারিখ</th>
+          <th style="width: 75px; text-align: left;">তারিখ</th>
           <th style="text-align: left;">বিবরণ ও মন্তব্য</th>
-          <th style="width: 85px; text-align: right;">ডেবিট / বিক্রয় (৳)</th>
-          <th style="width: 85px; text-align: right;">ক্রেডিট / জমা (৳)</th>
-          <th style="width: 95px; text-align: right;">অবশিষ্ট বকেয়া (৳)</th>
+          <th style="width: 80px; text-align: right;">মোট মূল্য (৳)</th>
+          <th style="width: 80px; text-align: right;">পরিশোধ (৳)</th>
+          <th style="width: 80px; text-align: right;">চালান বকেয়া (৳)</th>
+          <th style="width: 90px; text-align: right;">অবশিষ্ট জের (৳)</th>
         </tr>
       </thead>
       <tbody>
@@ -606,7 +621,7 @@ export function generateBankStatementHTML(options: {
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="5" style="text-align: right; font-weight: 700; color: #065f46;">
+          <td colspan="3" style="text-align: right; font-weight: 700; color: #065f46;">
             সর্বমোট হিসাব (PERIOD TOTALS):
           </td>
           <td style="text-align: right; color: #1d4ed8; font-weight: 800;">
@@ -614,6 +629,9 @@ export function generateBankStatementHTML(options: {
           </td>
           <td style="text-align: right; color: #047857; font-weight: 800;">
             ৳ ${formatMoney(ledger.totalCredit)}
+          </td>
+          <td style="text-align: right; color: #b91c1c; font-weight: 800;">
+            ৳ ${formatMoney(ledger.totalDue)}
           </td>
           <td style="text-align: right; color: ${ledger.closingBalance > 0 ? "#b91c1c" : "#0f172a"}; font-weight: 800;">
             ৳ ${formatMoney(ledger.closingBalance)}
@@ -686,11 +704,13 @@ export function generateCustomerListHTML(options: {
   const now = new Date();
   const printTimestamp = formatDateTimeStr(now);
 
+  const totalDueSum = customers.reduce((sum, c) => sum + (c.total_due || 0), 0);
+
   let rowsHtml = "";
   if (customers.length === 0) {
     rowsHtml = `
       <tr>
-        <td colspan="7" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
+        <td colspan="6" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
           কোনো গ্রাহক তথ্য পাওয়া যায়নি।
         </td>
       </tr>
@@ -704,6 +724,7 @@ export function generateCustomerListHTML(options: {
           <td style="padding: 6px 8px; font-weight: 600; color: #0f172a; font-size: 10.5px;">${c.name || "-"}</td>
           <td style="padding: 6px 8px; font-size: 10.5px; color: #334155; font-family: monospace;">${c.phone || "-"}</td>
           <td style="padding: 6px 8px; font-size: 10px; color: #334155; max-width: 180px; word-break: break-word;">${c.address || "-"}</td>
+          <td style="padding: 6px 8px; font-size: 10px; font-weight: 700; text-align: right; color: ${(c.total_due || 0) > 0 ? "#b91c1c" : "#047857"};">৳ ${formatMoney(c.total_due || 0)}</td>
           <td style="padding: 6px 8px; font-size: 10px; color: #64748b; white-space: nowrap;">${formatDateStr(c.created_at)}</td>
         </tr>
       `;
@@ -892,6 +913,10 @@ export function generateCustomerListHTML(options: {
       <div class="num">${customers.length}</div>
       <div class="lbl">মোট গ্রাহক</div>
     </div>
+    <div class="summary-card">
+      <div class="num" style="color: #b91c1c;">৳ ${formatMoney(totalDueSum)}</div>
+      <div class="lbl">মোট বকেয়ার পরিমাণ</div>
+    </div>
   </div>
 
   <table class="cust-table">
@@ -901,7 +926,8 @@ export function generateCustomerListHTML(options: {
         <th>গ্রাহকের নাম</th>
         <th>মোবাইল নম্বর</th>
         <th>ঠিকানা</th>
-        <th>নিবন্ধনের তারিখ</th>
+        <th style="width: 100px; text-align: right;">মোট বকেয়া (৳)</th>
+        <th style="width: 85px;">নিবন্ধনের তারিখ</th>
       </tr>
     </thead>
     <tbody>
@@ -1335,7 +1361,7 @@ export function generateSalesReportHTML(options: {
     }
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       margin-bottom: 14px;
     }
@@ -1354,6 +1380,10 @@ export function generateSalesReportHTML(options: {
       background: #ecfdf5;
       border-color: #a7f3d0;
     }
+    .metric-card.highlight-amber {
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
     .metric-num {
       font-size: 15px;
       font-weight: 800;
@@ -1365,6 +1395,9 @@ export function generateSalesReportHTML(options: {
     }
     .metric-card.highlight .metric-num {
       color: #b91c1c;
+    }
+    .metric-card.highlight-amber .metric-num {
+      color: #b45309;
     }
     .metric-lbl {
       font-size: 9px;
@@ -1508,7 +1541,7 @@ export function generateSalesReportHTML(options: {
     </div>
   </div>
 
-  <!-- Key Metrics -->
+  <!-- Key Metrics (6 Cards) -->
   <div class="metrics-grid">
     <div class="metric-card highlight-green">
       <div class="metric-lbl">মোট বিক্রয় (Gross Sales)</div>
@@ -1523,10 +1556,22 @@ export function generateSalesReportHTML(options: {
       <div class="metric-lbl">চলতি বকেয়া (Receivables)</div>
       <div class="metric-num">৳ ${formatMoney(metrics.totalDue)}</div>
     </div>
+    <div class="metric-card highlight-amber">
+      <div class="metric-lbl">সরল মুনাফা (Simple Profit)</div>
+      <div class="metric-num">৳ ${formatMoney(metrics.simpleProfit)}</div>
+      <div style="font-size: 8px; color: #b45309; margin-top: 2px;">পণ্য বিক্রয় লভ্যাংশ</div>
+    </div>
     <div class="metric-card">
-      <div class="metric-lbl">মোট লেনদেন সংখ্যা</div>
-      <div class="metric-num">${metrics.totalTransactions} টি</div>
-      <div style="font-size: 8px; color: #64748b; margin-top: 2px;">গড় বিক্রয়: ৳ ${formatMoney(metrics.avgSaleAmount)}</div>
+      <div class="metric-lbl">মোট অন্যান্য খরচ (Other Costs)</div>
+      <div class="metric-num">৳ ${formatMoney(metrics.otherCosts)}</div>
+      <div style="font-size: 8px; color: #64748b; margin-top: 2px;">অফিস ও বিবিধ ব্যয়</div>
+    </div>
+    <div class="metric-card ${metrics.netProfit >= 0 ? "highlight-green" : "highlight"}">
+      <div class="metric-lbl">নিট লাভ (Net Profit)</div>
+      <div class="metric-num">৳ ${formatMoney(metrics.netProfit)}</div>
+      <div style="font-size: 8px; color: ${metrics.netProfit >= 0 ? "#047857" : "#b91c1c"}; margin-top: 2px;">
+        ${metrics.netProfit >= 0 ? "নিট মুনাফা অর্জিত" : "নিট লোকসান"}
+      </div>
     </div>
   </div>
 
@@ -2565,6 +2610,246 @@ export async function exportPartyListPDF(options: {
   const html = generatePartyListHTML(parties);
   const today = formatDateStr(new Date());
   const fileName = customFileName || `SR-Tradelink-Parties-List-${today}.pdf`;
+
+  if (mode === "print") {
+    await printHtmlContent(html);
+  } else {
+    await downloadPdfFromHtml({ html, fileName });
+  }
+}
+
+/**
+ * Generate Other Costs List Report HTML
+ */
+export function generateOtherCostsListHTML(
+  costs: OtherCost[],
+  titleInfo: { subtitle?: string; dateRange?: string } = {}
+): string {
+  const printTimestamp = formatDateTimeStr(new Date());
+  let totalAmount = 0;
+
+  const rowsHtml =
+    costs.length === 0
+      ? `<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">কোনো খরচের রেকর্ড পাওয়া যায়নি</td></tr>`
+      : costs
+          .map((c, index) => {
+            const amt = Number(c.amount) || 0;
+            totalAmount += amt;
+            return `
+        <tr>
+          <td style="text-align: center; font-weight: 600; color: #64748b;">${index + 1}</td>
+          <td style="font-weight: 500;">${formatDateStr(c.date)}</td>
+          <td>
+            <div style="font-weight: 600; color: #0f172a;">${c.title}</div>
+            ${c.description ? `<div style="font-size: 9px; color: #64748b; margin-top: 1px;">${c.description}</div>` : ""}
+          </td>
+          <td><span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-size: 9.5px; font-weight: 500; color: #334155;">${getCategoryLabel(c.category)}</span></td>
+          <td style="text-align: right; font-weight: 700; color: #0f172a;">৳ ${formatMoney(amt)}</td>
+        </tr>
+      `;
+          })
+          .join("");
+
+  return `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>অন্যান্য খরচ তালিকা বিবরণী | SR Tradelink</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Bengali', sans-serif; color: #0f172a; background: #ffffff; padding: 12px; font-size: 10.5px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 12px; }
+    .brand-title { font-size: 18px; font-weight: 800; color: #065f46; }
+    .brand-sub { font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; }
+    .title-banner { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .title-banner h2 { font-size: 14px; font-weight: 700; color: #065f46; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px; }
+    th { background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 8px; font-weight: 700; color: #334155; text-align: left; }
+    td { border: 1px solid #e2e8f0; padding: 6px 8px; }
+    tfoot td { background: #f0fdf4; font-weight: 800; border: 1.5px solid #86efac; }
+    .footer { display: flex; justify-content: space-between; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand-title">${COMPANY_INFO.nameBn}</div>
+      <div class="brand-sub">${COMPANY_INFO.nameEn}</div>
+      <div style="font-size: 9.5px; color: #475569;">${COMPANY_INFO.tagline}</div>
+    </div>
+    <div style="text-align: right; font-size: 9px; color: #475569;">
+      <div>📍 ${COMPANY_INFO.address}</div>
+      <div>📞 ${COMPANY_INFO.phone}</div>
+    </div>
+  </div>
+
+  <div class="title-banner">
+    <div>
+      <h2>অন্যান্য খরচের হিসাব বিবরণী</h2>
+      <div style="font-size: 9.5px; color: #047857;">${titleInfo.subtitle || "সকল অন্যান্য খরচ ও বিবিধ ব্যয়ের তালিকা"}</div>
+      ${titleInfo.dateRange ? `<div style="font-size: 9px; color: #475569; margin-top: 2px;">সময়কাল: ${titleInfo.dateRange}</div>` : ""}
+    </div>
+    <div style="text-align: right; font-size: 9.5px;">
+      <div>মোট এন্ট্রি: <strong>${costs.length}</strong> টি</div>
+      <div>প্রিন্ট সময়: <strong>${printTimestamp}</strong></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 35px; text-align: center;">ক্র.</th>
+        <th style="width: 80px;">তারিখ</th>
+        <th>খরচের বিবরণ / শিরোনাম</th>
+        <th style="width: 130px;">ক্যাটাগরি</th>
+        <th style="width: 100px; text-align: right;">পরিমাণ (৳)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align: right; color: #065f46;">সর্বমোট অন্যান্য খরচ (TOTAL EXPENSE):</td>
+        <td style="text-align: right; color: #b91c1c; font-size: 11px;">৳ ${formatMoney(totalAmount)}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="footer">
+    <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক</div>
+    <div>পৃষ্ঠা ১ / ১</div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Generate Printable Expense Voucher HTML
+ */
+export function generateOtherCostVoucherHTML(cost: OtherCost): string {
+  const printTimestamp = formatDateTimeStr(new Date());
+  const formattedDate = formatDateStr(cost.date);
+  const amt = Number(cost.amount) || 0;
+
+  return `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>খরচের ভাউচার - ${cost.id} | SR Tradelink</title>
+  <style>
+    @page { size: A5 landscape; margin: 10mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Bengali', sans-serif; color: #0f172a; background: #ffffff; padding: 16px; font-size: 11px; }
+    .voucher-card { border: 2px solid #059669; border-radius: 8px; padding: 16px; position: relative; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px dashed #a7f3d0; padding-bottom: 10px; margin-bottom: 12px; }
+    .brand-title { font-size: 18px; font-weight: 800; color: #065f46; }
+    .badge { display: inline-block; background: #ecfdf5; border: 1px solid #10b981; color: #065f46; font-weight: 700; padding: 3px 10px; border-radius: 20px; font-size: 11px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
+    .info-item { font-size: 10.5px; }
+    .info-label { color: #64748b; font-size: 9.5px; }
+    .info-value { font-weight: 700; color: #0f172a; margin-top: 1px; }
+    .amount-box { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 16px; }
+    .amount-title { font-size: 11px; color: #047857; font-weight: 600; }
+    .amount-val { font-size: 22px; font-weight: 800; color: #065f46; margin-top: 2px; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 30px; padding-top: 10px; }
+    .sig-line { width: 140px; border-top: 1px solid #94a3b8; text-align: center; font-size: 9.5px; color: #475569; padding-top: 4px; }
+    .footer { display: flex; justify-content: space-between; font-size: 8.5px; color: #94a3b8; margin-top: 14px; border-top: 1px dotted #e2e8f0; padding-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="voucher-card">
+    <div class="header">
+      <div>
+        <div class="brand-title">${COMPANY_INFO.nameBn}</div>
+        <div style="font-size: 11px; font-weight: 700; color: #047857;">${COMPANY_INFO.nameEn}</div>
+        <div style="font-size: 9px; color: #475569;">${COMPANY_INFO.address} • 📞 ${COMPANY_INFO.phone}</div>
+      </div>
+      <div style="text-align: right;">
+        <span class="badge">খরচ ভাউচার / ডেবিট মেমো</span>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">খরচের তারিখ:</div>
+        <div class="info-value">${formattedDate}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">ক্যাটাগরি / খাত:</div>
+        <div class="info-value">${getCategoryLabel(cost.category)}</div>
+      </div>
+      <div class="info-item" style="grid-column: span 2;">
+        <div class="info-label">খরচের শিরোনাম / বিবরণ:</div>
+        <div class="info-value" style="font-size: 12px; color: #065f46;">${cost.title}</div>
+      </div>
+      ${
+        cost.description
+          ? `
+      <div class="info-item" style="grid-column: span 2;">
+        <div class="info-label">অতিরিক্ত নোট / মন্তব্য:</div>
+        <div class="info-value" style="font-weight: 500; color: #475569;">${cost.description}</div>
+      </div>
+      `
+          : ""
+      }
+    </div>
+
+    <div class="amount-box">
+      <div class="amount-title">পরিশোধিত মোট খরচের পরিমাণ</div>
+      <div class="amount-val">৳ ${formatMoney(amt)}</div>
+    </div>
+
+    <div class="signatures">
+      <div class="sig-line">গ্রহীতার স্বাক্ষর</div>
+      <div class="sig-line">ক্যাশিয়ার / প্রস্তুতকারক</div>
+      <div class="sig-line">অনুমোদনকারী স্বাক্ষর</div>
+    </div>
+
+    <div class="footer">
+      <div>মুদ্রণ: ${printTimestamp}</div>
+      <div>সিস্টেম: এসআর ট্রেডলিংক ইআরপি</div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Export Other Costs List to PDF
+ */
+export async function exportOtherCostsListPDF(options: {
+  costs: OtherCost[];
+  customFileName?: string;
+  mode?: "download" | "print";
+  titleInfo?: { subtitle?: string; dateRange?: string };
+}): Promise<void> {
+  const { costs, customFileName, mode = "download", titleInfo } = options;
+  const html = generateOtherCostsListHTML(costs, titleInfo);
+  const today = formatDateStr(new Date());
+  const fileName = customFileName || `SR-Tradelink-Other-Costs-${today}.pdf`;
+
+  if (mode === "print") {
+    await printHtmlContent(html);
+  } else {
+    await downloadPdfFromHtml({ html, fileName });
+  }
+}
+
+/**
+ * Print or Download single Other Cost Voucher PDF
+ */
+export async function printOtherCostVoucherPDF(
+  cost: OtherCost,
+  mode: "print" | "download" = "print"
+): Promise<void> {
+  const html = generateOtherCostVoucherHTML(cost);
+  const fileName = `Voucher-${cost.voucher_no || cost.id.slice(-6)}.pdf`;
 
   if (mode === "print") {
     await printHtmlContent(html);

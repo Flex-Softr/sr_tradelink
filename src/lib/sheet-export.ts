@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 
 import type { Customer } from "@/lib/customers";
+import { type OtherCost, getCategoryLabel } from "@/lib/other-costs";
 import type { Party, PartyTransaction, PartyTransactionSummary } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
@@ -53,6 +54,7 @@ export function exportCustomersToExcel(customers: Customer[], customFileName?: s
     "গ্রাহকের নাম": c.name || "-",
     "মোবাইল নম্বর": c.phone || "-",
     ঠিকানা: c.address || "-",
+    "মোট বকেয়া (৳)": c.total_due ?? 0,
     "নিবন্ধনের তারিখ": formatDate(c.created_at),
   }));
 
@@ -63,10 +65,8 @@ export function exportCustomersToExcel(customers: Customer[], customFileName?: s
     { wch: 10 }, // ক্রমিক নং
     { wch: 25 }, // নাম
     { wch: 18 }, // মোবাইল
-    { wch: 25 }, // ইমেইল
-    { wch: 22 }, // ধরণ
-    { wch: 14 }, // ভিআইপি
     { wch: 35 }, // ঠিকানা
+    { wch: 18 }, // মোট বকেয়া
     { wch: 16 }, // তারিখ
   ];
 
@@ -87,6 +87,7 @@ export function exportCustomersToCSV(customers: Customer[], customFileName?: str
     "গ্রাহকের নাম": c.name || "-",
     "মোবাইল নম্বর": c.phone || "-",
     ঠিকানা: c.address || "-",
+    "মোট বকেয়া (৳)": c.total_due ?? 0,
     "নিবন্ধনের তারিখ": formatDate(c.created_at),
   }));
 
@@ -154,8 +155,6 @@ export function exportCustomerTransactionsToExcel({
   rows.push([
     "সর্বমোট হিসাব:",
     "",
-    "",
-    "",
     summary.totalSales,
     summary.totalPaid,
     summary.totalDue,
@@ -168,12 +167,10 @@ export function exportCustomerTransactionsToExcel({
   worksheet["!cols"] = [
     { wch: 10 }, // ক্রমিক
     { wch: 14 }, // তারিখ
-    { wch: 22 }, // চালান / মেমো
-    { wch: 24 }, // ধরন
-    { wch: 16 }, // মোট টাকা
-    { wch: 16 }, // পরিশোধ
-    { wch: 16 }, // বকেয়া
-    { wch: 35 }, // বিবরণ
+    { wch: 18 }, // মোট টাকা
+    { wch: 18 }, // পরিশোধ
+    { wch: 18 }, // বকেয়া
+    { wch: 40 }, // বিবরণ / নোট
   ];
 
   const workbook = XLSX.utils.book_new();
@@ -263,10 +260,16 @@ export function exportCentralSalesReportToExcel({
       `${metrics.collectionRate}%`,
     ],
     [
+      "সরল মুনাফা (Simple Profit)",
+      `৳ ${(metrics.simpleProfit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      "মোট অন্যান্য খরচ (Other Costs)",
+      `৳ ${(metrics.otherCosts || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    ],
+    [
+      "নিট লাভ (Net Profit)",
+      `৳ ${(metrics.netProfit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       "মোট লেনদেন সংখ্যা",
       `${metrics.totalTransactions} টি`,
-      "গড় বিক্রয় মূল্য",
-      `৳ ${metrics.avgSaleAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
     ],
     [],
     // Transactions Table Headers
@@ -552,5 +555,88 @@ export function exportPartyTransactionsToCSV({
   const today = new Date().toISOString().split("T")[0];
   const safePartyName = party.name.replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, "_");
   const fileName = customFileName || `পার্টি_${safePartyName}_হিসাব_${today}.csv`;
+  downloadCSV(csv, fileName);
+}
+
+/**
+ * Export other costs list to Excel (.xlsx) sheet
+ */
+export function exportOtherCostsToExcel(costs: OtherCost[], customFileName?: string) {
+  let totalAmount = 0;
+  const data = costs.map((c, index) => {
+    const amt = Number(c.amount) || 0;
+    totalAmount += amt;
+    return {
+      "ক্রমিক নং": index + 1,
+      তারিখ: formatDate(c.date),
+      "খরচের বিবরণ / শিরোনাম": c.title || "-",
+      ক্যাটাগরি: getCategoryLabel(c.category),
+      "খরচের পরিমাণ (৳)": amt,
+      নোট: c.description || "-",
+    };
+  });
+
+  // Summary row
+  data.push({
+    "ক্রমিক নং": "সর্বমোট" as unknown as number,
+    তারিখ: "-",
+    "খরচের বিবরণ / শিরোনাম": `মোট এন্ট্রি: ${costs.length} টি`,
+    ক্যাটাগরি: "-",
+    "খরচের পরিমাণ (৳)": totalAmount,
+    নোট: `সর্বমোট খরচ: ৳ ${totalAmount}`,
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  worksheet["!cols"] = [
+    { wch: 10 }, // ক্রমিক নং
+    { wch: 14 }, // তারিখ
+    { wch: 30 }, // খরচের বিবরণ
+    { wch: 22 }, // ক্যাটাগরি
+    { wch: 18 }, // খরচের পরিমাণ
+    { wch: 35 }, // নোট
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "অন্যান্য খরচ");
+
+  const today = new Date().toISOString().split("T")[0];
+  const fileName = customFileName || `অন্যান্য_খরচ_${today}.xlsx`;
+  downloadWorkbook(workbook, fileName);
+}
+
+/**
+ * Export other costs list to CSV format
+ */
+export function exportOtherCostsToCSV(costs: OtherCost[], customFileName?: string) {
+  let totalAmount = 0;
+  const data = costs.map((c, index) => {
+    const amt = Number(c.amount) || 0;
+    totalAmount += amt;
+    return {
+      "ক্রমিক নং": index + 1,
+      তারিখ: formatDate(c.date),
+      "খরচের বিবরণ / শিরোনাম": c.title || "-",
+      ক্যাটাগরি: getCategoryLabel(c.category),
+      "খরচের পরিমাণ (৳)": amt,
+      নোট: c.description || "-",
+    };
+  });
+
+  // Summary row
+  data.push({
+    "ক্রমিক নং": "সর্বমোট" as unknown as number,
+    তারিখ: "-",
+    "খরচের বিবরণ / শিরোনাম": `মোট এন্ট্রি: ${costs.length} টি`,
+    ক্যাটাগরি: "-",
+    "খরচের পরিমাণ (৳)": totalAmount,
+    নোট: `সর্বমোট খরচ: ৳ ${totalAmount}`,
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+  const today = new Date().toISOString().split("T")[0];
+  const fileName = customFileName || `অন্যান্য_খরচ_${today}.csv`;
   downloadCSV(csv, fileName);
 }

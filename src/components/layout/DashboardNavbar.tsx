@@ -14,6 +14,7 @@ import {
   RiGroupLine,
   RiLockPasswordLine,
   RiMenuLine,
+  RiMoneyDollarCircleLine,
   RiProductHuntLine,
   RiShieldUserLine,
 } from "@remixicon/react";
@@ -21,7 +22,6 @@ import {
 import LogoutButton from "@/components/dashboard/LogoutButton";
 import UserDropdown from "@/components/layout/UserDropdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface DashboardNavbarProps {
@@ -67,6 +67,12 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
       label: "বিক্রয় রিপোর্ট",
       icon: RiBarChartBoxLine,
       active: pathname.startsWith("/dashboard/sales"),
+    },
+    {
+      href: "/dashboard/other-costs",
+      label: "অন্যান্য খরচ",
+      icon: RiMoneyDollarCircleLine,
+      active: pathname.startsWith("/dashboard/other-costs"),
     },
     {
       href: "/dashboard/users",
@@ -167,9 +173,6 @@ export default function DashboardNavbar({ user }: DashboardNavbarProps) {
                 </span>
               </div>
             </div>
-            <Badge variant="outline" className="text-[10px] whitespace-nowrap uppercase">
-              {user?.role || "ADMIN"}
-            </Badge>
           </div>
 
           <div className="flex flex-col gap-1">

@@ -9,15 +9,12 @@ import {
   RiEditLine,
   RiErrorWarningLine,
   RiEyeLine,
-  RiFilterLine,
   RiLoader4Line,
   RiMailLine,
   RiRefreshLine,
   RiSearchLine,
   RiShieldUserLine,
   RiUserAddLine,
-  RiUserLine,
-  RiUserSettingsLine,
 } from "@remixicon/react";
 
 import {
@@ -44,47 +41,6 @@ import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import type { CreateUserInput, SafeUser, UpdateUserInput } from "@/lib/users";
 
-const ROLES = [
-  { value: "admin", label: "অ্যাডমিন (Admin)", desc: "সম্পূর্ণ প্রশাসনিক নিয়ন্ত্রণ" },
-  { value: "staff", label: "স্টাফ (Staff)", desc: "পণ্য ও গ্রাহক পরিচালনার অনুমতি" },
-  { value: "user", label: "সাধারণ ইউজার (User)", desc: "সাধারণ অ্যাক্সেস" },
-];
-
-function getRoleBadge(role: string) {
-  switch (role.toLowerCase()) {
-    case "admin":
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-purple-100 text-purple-800 ring-1 ring-purple-600/20 dark:bg-purple-950/60 dark:text-purple-300"
-        >
-          <RiShieldUserLine className="mr-1 size-3" />
-          অ্যাডমিন (ADMIN)
-        </Badge>
-      );
-    case "staff":
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-blue-100 text-blue-800 ring-1 ring-blue-600/20 dark:bg-blue-950/60 dark:text-blue-300"
-        >
-          <RiUserSettingsLine className="mr-1 size-3" />
-          স্টাফ (STAFF)
-        </Badge>
-      );
-    default:
-      return (
-        <Badge
-          variant="outline"
-          className="bg-slate-50 text-slate-700 ring-1 ring-slate-400/20 dark:bg-slate-800 dark:text-slate-300"
-        >
-          <RiUserLine className="mr-1 size-3" />
-          ইউজার (USER)
-        </Badge>
-      );
-  }
-}
-
 interface UserManagementProps {
   initialUsers: SafeUser[];
 }
@@ -92,7 +48,6 @@ interface UserManagementProps {
 export default function UserManagement({ initialUsers }: UserManagementProps) {
   const [usersList, setUsersList] = useState<SafeUser[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Pagination state (20 items per page by default)
@@ -113,7 +68,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
     name: "",
     email: "",
     password: "",
-    role: "user",
+    role: "admin",
   });
   const [editPassword, setEditPassword] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -136,17 +91,13 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
   // Filtered users in memory
   const filteredUsers = useMemo(() => {
     return usersList.filter((u) => {
-      const matchesSearch =
+      return (
         !searchTerm.trim() ||
         (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesRole =
-        selectedRoleFilter === "all" || u.role.toLowerCase() === selectedRoleFilter.toLowerCase();
-
-      return matchesSearch && matchesRole;
+        u.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     });
-  }, [usersList, searchTerm, selectedRoleFilter]);
+  }, [usersList, searchTerm]);
 
   // Paginated slice
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
@@ -154,12 +105,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredUsers.slice(start, start + itemsPerPage);
   }, [filteredUsers, currentPage, itemsPerPage]);
-
-  // Stats calculation
-  const totalCount = usersList.length;
-  const adminCount = usersList.filter((u) => u.role.toLowerCase() === "admin").length;
-  const staffCount = usersList.filter((u) => u.role.toLowerCase() === "staff").length;
-  const generalUserCount = usersList.filter((u) => u.role.toLowerCase() === "user").length;
 
   // Refresh data from server
   const handleRefresh = () => {
@@ -178,7 +123,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
       name: "",
       email: "",
       password: "",
-      role: "user",
+      role: "admin",
     });
     setFormErrors({});
     setIsAddOpen(true);
@@ -191,7 +136,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
       name: user.name || "",
       email: user.email,
       password: "",
-      role: user.role,
+      role: user.role || "admin",
     });
     setEditPassword("");
     setFormErrors({});
@@ -276,7 +221,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
     const payload: UpdateUserInput = {
       name: formData.name,
       email: formData.email,
-      role: formData.role,
+      role: formData.role || "admin",
     };
     if (editPassword.trim().length >= 6) {
       payload.password = editPassword.trim();
@@ -350,7 +295,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
             <div className="flex flex-wrap items-center gap-2.5">
               <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
                 <RiShieldUserLine className="size-5 text-purple-600 dark:text-purple-400" />
-                সিস্টেম ব্যবহারকারী ও অ্যাডমিন তালিকা
+                সিস্টেম ব্যবহারকারী তালিকা
               </CardTitle>
               <Badge
                 variant="secondary"
@@ -360,7 +305,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
               </Badge>
             </div>
             <CardDescription className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              অ্যাডমিন, স্টাফ ও সাধারণ ব্যবহারকারী অ্যাকাউন্ট ব্যবস্থাপনা এবং নিরাপত্তা নিয়ন্ত্রণ
+              সিস্টেম ব্যবহারকারী ও লগইন অ্যাকাউন্ট ব্যবস্থাপনা এবং নিরাপত্তা নিয়ন্ত্রণ
             </CardDescription>
           </div>
 
@@ -389,7 +334,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
         </CardHeader>
 
         <CardContent className="space-y-4 pt-5">
-          {/* Search and Role Filter Bar */}
+          {/* Search Bar */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Search Input */}
             <div className="relative max-w-md flex-1">
@@ -417,27 +362,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                 </button>
               )}
             </div>
-
-            {/* Filter by Role */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <RiFilterLine className="size-3.5" />
-                <span>ভূমিকা:</span>
-              </div>
-              <select
-                value={selectedRoleFilter}
-                onChange={(e) => {
-                  setSelectedRoleFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs focus:border-purple-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <option value="all">সকল ভূমিকা ({totalCount})</option>
-                <option value="admin">অ্যাডমিন ({adminCount})</option>
-                <option value="staff">স্টাফ ({staffCount})</option>
-                <option value="user">সাধারণ ইউজার ({generalUserCount})</option>
-              </select>
-            </div>
           </div>
 
           {/* Users Table */}
@@ -452,9 +376,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                     <th scope="col" className="px-4 py-3">
                       ইমেইল
                     </th>
-                    <th scope="col" className="px-4 py-3 text-center">
-                      ভূমিকা / পদবি
-                    </th>
                     <th scope="col" className="px-4 py-3">
                       তৈরির তারিখ
                     </th>
@@ -466,14 +387,15 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {paginatedUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center">
+                      <td colSpan={4} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-500">
                           <RiShieldUserLine className="mb-2 size-10 text-slate-300 dark:text-slate-700" />
                           <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
                             কোনো ব্যবহারকারী পাওয়া যায়নি
                           </p>
                           <p className="mt-1 text-xs text-slate-400">
-                            আপনার অনুসন্ধানের ফিল্টার পরিবর্তন করুন অথবা নতুন ব্যবহারকারী তৈরি করুন
+                            আপনার অনুসন্ধানের নাম বা ইমেইল পরিবর্তন করুন অথবা নতুন ব্যবহারকারী তৈরি
+                            করুন
                           </p>
                         </div>
                       </td>
@@ -519,9 +441,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                               </a>
                             </div>
                           </td>
-
-                          {/* Role */}
-                          <td className="px-4 py-3 text-center">{getRoleBadge(user.role)}</td>
 
                           {/* Date */}
                           <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
@@ -602,7 +521,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                 নতুন সিস্টেম ব্যবহারকারী যোগ করুন
               </DialogTitle>
               <DialogDescription>
-                অ্যাডমিন বা কর্মীদের জন্য নতুন লগইন অ্যাকাউন্ট তৈরি করুন।
+                সিস্টেম পরিচালনার জন্য নতুন ব্যবহারকারী অ্যাকাউন্ট তৈরি করুন।
               </DialogDescription>
             </DialogHeader>
 
@@ -661,23 +580,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                   <p className="text-xs font-medium text-rose-500">{formErrors.password}</p>
                 )}
               </div>
-
-              {/* Role */}
-              <div className="space-y-1.5">
-                <Label htmlFor="add-role">ব্যবহারকারীর ভূমিকা (Role)</Label>
-                <select
-                  id="add-role"
-                  value={formData.role}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-purple-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label} - {r.desc}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
@@ -711,7 +613,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                 ব্যবহারকারী তথ্য সম্পাদনা
               </DialogTitle>
               <DialogDescription>
-                ব্যবহারকারীর নাম, ইমেইল, পাসওয়ার্ড ও প্রশাসনিক পদবি আপডেট করুন।
+                ব্যবহারকারীর নাম, ইমেইল ও পাসওয়ার্ড আপডেট করুন।
               </DialogDescription>
             </DialogHeader>
 
@@ -766,23 +668,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   আগের পাসওয়ার্ড বহাল রাখতে এই ঘরটি ফাঁকা রাখুন।
                 </p>
-              </div>
-
-              {/* Role */}
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-role">ভূমিকা (Role)</Label>
-                <select
-                  id="edit-role"
-                  value={formData.role}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-purple-600 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label} - {r.desc}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -870,7 +755,6 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
                     {activeUser.name || "নামহীন ব্যবহারকারী"}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{activeUser.email}</p>
-                  <div className="mt-1.5">{getRoleBadge(activeUser.role)}</div>
                 </div>
               </div>
 

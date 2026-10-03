@@ -6,7 +6,6 @@ import { getServerSession } from "next-auth";
 
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import LogoutButton from "@/components/dashboard/LogoutButton";
-import { Badge } from "@/components/ui/badge";
 import { authOptions } from "@/lib/auth";
 import { getCustomers } from "@/lib/customers";
 import { getParties } from "@/lib/parties";
@@ -44,9 +43,6 @@ export default async function DashboardPage() {
                 <RiUserStarLine className="mr-1 size-3.5" />
                 অ্যাডমিন পোর্টাল
               </span>
-              <Badge variant="outline" className="text-xs uppercase">
-                {user?.role || "ADMIN"}
-              </Badge>
             </div>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
               স্বাগতম, {user?.name || "অ্যাডমিন"}

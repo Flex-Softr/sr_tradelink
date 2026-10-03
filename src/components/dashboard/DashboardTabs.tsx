@@ -13,12 +13,13 @@ import {
   RiCheckDoubleLine,
   RiFileList3Line,
   RiGroupLine,
+  RiMoneyDollarCircleLine,
   RiProductHuntLine,
   RiShieldUserLine,
-  RiVipCrownLine,
 } from "@remixicon/react";
 
 import CustomerManagement from "@/components/dashboard/CustomerManagement";
+import OtherCostManagement from "@/components/dashboard/OtherCostManagement";
 import PartyManagement from "@/components/dashboard/PartyManagement";
 import ProductManagement from "@/components/dashboard/ProductManagement";
 import SalesReportView from "@/components/dashboard/SalesReportView";
@@ -37,7 +38,7 @@ interface DashboardTabsProps {
   initialUsers: SafeUser[];
 }
 
-type TabType = "products" | "customers" | "parties" | "sales" | "users";
+type TabType = "products" | "customers" | "parties" | "sales" | "other-costs" | "users";
 
 function DashboardTabsContent({
   initialProducts,
@@ -55,8 +56,12 @@ function DashboardTabsContent({
     tabParam === "products" ||
     tabParam === "parties" ||
     tabParam === "users" ||
-    tabParam === "sales"
-      ? tabParam
+    tabParam === "sales" ||
+    tabParam === "other-costs" ||
+    tabParam === "costs"
+      ? tabParam === "costs"
+        ? "other-costs"
+        : (tabParam as TabType)
       : selectedTab;
 
   // Listen for hash changes (e.g. from navbar clicks #customers, #products, #parties, #users, #sales)
@@ -94,29 +99,30 @@ function DashboardTabsContent({
   const totalCustomers = initialCustomers.length;
   const totalParties = initialParties.length;
   const totalUsers = initialUsers.length;
-  const adminUsers = initialUsers.filter((u) => u.role.toLowerCase() === "admin").length;
 
   return (
     <div className="space-y-6">
-      {/* Top Level Metric Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
+      {/* Top Level Metric Cards (3 in each line, compact & clean) */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Products */}
         <Card
           onClick={() => handleTabChange("products")}
-          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
             activeTab === "products"
-              ? "border-green-500/50 bg-green-50/40 ring-2 ring-green-500/20 dark:bg-green-950/20 dark:ring-green-500/30"
+              ? "ring-1.5 border-green-500/50 bg-green-50/40 ring-green-500/20 dark:bg-green-950/20 dark:ring-green-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-4 sm:p-5">
-            <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
-                <RiBox3Line className="size-5" />
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                <RiBox3Line className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">মোট পণ্য</p>
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  মোট পণ্য
+                </p>
+                <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
                   {totalProducts}
                 </h3>
               </div>
@@ -127,7 +133,7 @@ function DashboardTabsContent({
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
-              <RiArrowRightUpLine className="size-4" />
+              <RiArrowRightUpLine className="size-3.5" />
             </Link>
           </CardContent>
         </Card>
@@ -135,25 +141,29 @@ function DashboardTabsContent({
         {/* Total Customers */}
         <Card
           onClick={() => handleTabChange("customers")}
-          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
             activeTab === "customers"
-              ? "border-emerald-500/50 bg-emerald-50/40 ring-2 ring-emerald-500/20 dark:bg-emerald-950/20 dark:ring-emerald-500/30"
+              ? "ring-1.5 border-emerald-500/50 bg-emerald-50/40 ring-emerald-500/20 dark:bg-emerald-950/20 dark:ring-emerald-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-4 sm:p-5">
-            <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                <RiGroupLine className="size-5" />
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                <RiGroupLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">মোট গ্রাহক</p>
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-                  {totalCustomers}
-                </h3>
-                <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                  খুচরা ও খামারি
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  মোট গ্রাহক
                 </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
+                    {totalCustomers}
+                  </h3>
+                  <span className="text-[10.5px] font-medium text-emerald-700 dark:text-emerald-400">
+                    খুচরা ও খামারি
+                  </span>
+                </div>
               </div>
             </div>
             <Link
@@ -162,7 +172,7 @@ function DashboardTabsContent({
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
-              <RiArrowRightUpLine className="size-4" />
+              <RiArrowRightUpLine className="size-3.5" />
             </Link>
           </CardContent>
         </Card>
@@ -170,27 +180,29 @@ function DashboardTabsContent({
         {/* Total Parties */}
         <Card
           onClick={() => handleTabChange("parties")}
-          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
             activeTab === "parties"
-              ? "border-purple-500/50 bg-purple-50/40 ring-2 ring-purple-500/20 dark:bg-purple-950/20 dark:ring-purple-500/30"
+              ? "ring-1.5 border-purple-500/50 bg-purple-50/40 ring-purple-500/20 dark:bg-purple-950/20 dark:ring-purple-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-4 sm:p-5">
-            <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                <RiBuilding2Line className="size-5" />
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                <RiBuilding2Line className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   পার্টি খাতা
                 </p>
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-                  {totalParties}
-                </h3>
-                <p className="text-[11px] font-medium text-purple-700 dark:text-purple-400">
-                  মহাজন ও সাপ্লায়ার
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
+                    {totalParties}
+                  </h3>
+                  <span className="text-[10.5px] font-medium text-purple-700 dark:text-purple-400">
+                    মহাজন ও সাপ্লায়ার
+                  </span>
+                </div>
               </div>
             </div>
             <Link
@@ -199,7 +211,7 @@ function DashboardTabsContent({
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
-              <RiArrowRightUpLine className="size-4" />
+              <RiArrowRightUpLine className="size-3.5" />
             </Link>
           </CardContent>
         </Card>
@@ -207,27 +219,29 @@ function DashboardTabsContent({
         {/* Sales & Cashflow Report Card */}
         <Card
           onClick={() => handleTabChange("sales")}
-          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
             activeTab === "sales"
-              ? "border-blue-500/50 bg-blue-50/40 ring-2 ring-blue-500/20 dark:bg-blue-950/20 dark:ring-blue-500/30"
+              ? "ring-1.5 border-blue-500/50 bg-blue-50/40 ring-blue-500/20 dark:bg-blue-950/20 dark:ring-blue-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-4 sm:p-5">
-            <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                <RiBarChartBoxLine className="size-5" />
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                <RiBarChartBoxLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   বিক্রয় রিপোর্ট
                 </p>
-                <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
-                  কেন্দ্রীয় অডিট
-                </h3>
-                <p className="text-[11px] font-medium text-blue-700 dark:text-blue-400">
-                  বিক্রয় ও বকেয়া হিসাব
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg dark:text-white">
+                    কেন্দ্রীয় অডিট
+                  </h3>
+                  <span className="text-[10.5px] font-medium text-blue-700 dark:text-blue-400">
+                    বিক্রয় ও লাভ
+                  </span>
+                </div>
               </div>
             </div>
             <Link
@@ -236,7 +250,46 @@ function DashboardTabsContent({
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
-              <RiArrowRightUpLine className="size-4" />
+              <RiArrowRightUpLine className="size-3.5" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Other Costs */}
+        <Card
+          onClick={() => handleTabChange("other-costs")}
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
+            activeTab === "other-costs"
+              ? "ring-1.5 border-amber-500/50 bg-amber-50/40 ring-amber-500/20 dark:bg-amber-950/20 dark:ring-amber-500/30"
+              : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
+          }`}
+        >
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                <RiMoneyDollarCircleLine className="size-4.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  অন্যান্য খরচ
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg dark:text-white">
+                    বিবিধ ব্যয়
+                  </h3>
+                  <span className="text-[10.5px] font-medium text-amber-700 dark:text-amber-400">
+                    বেতন ও বিল
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/other-costs"
+              title="অন্যান্য খরচ পৃষ্ঠায় যান"
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RiArrowRightUpLine className="size-3.5" />
             </Link>
           </CardContent>
         </Card>
@@ -244,27 +297,29 @@ function DashboardTabsContent({
         {/* Total Users */}
         <Card
           onClick={() => handleTabChange("users")}
-          className={`cursor-pointer border transition-all duration-200 hover:shadow-md ${
+          className={`cursor-pointer border transition-all duration-200 hover:shadow-xs ${
             activeTab === "users"
-              ? "border-indigo-500/50 bg-indigo-50/40 ring-2 ring-indigo-500/20 dark:bg-indigo-950/20 dark:ring-indigo-500/30"
+              ? "ring-1.5 border-indigo-500/50 bg-indigo-50/40 ring-indigo-500/20 dark:bg-indigo-950/20 dark:ring-indigo-500/30"
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-4 sm:p-5">
-            <div className="flex items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
-                <RiShieldUserLine className="size-5" />
+          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                <RiShieldUserLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   ব্যবহারকারী
                 </p>
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-                  {totalUsers}
-                </h3>
-                <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-400">
-                  অ্যাডমিন: {adminUsers} জন
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
+                    {totalUsers}
+                  </h3>
+                  <span className="text-[10.5px] font-medium text-indigo-700 dark:text-indigo-400">
+                    সক্রিয় অ্যাকাউন্ট
+                  </span>
+                </div>
               </div>
             </div>
             <Link
@@ -273,7 +328,7 @@ function DashboardTabsContent({
               className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={(e) => e.stopPropagation()}
             >
-              <RiArrowRightUpLine className="size-4" />
+              <RiArrowRightUpLine className="size-3.5" />
             </Link>
           </CardContent>
         </Card>
@@ -376,6 +431,29 @@ function DashboardTabsContent({
 
           <button
             type="button"
+            onClick={() => handleTabChange("other-costs")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
+              activeTab === "other-costs"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <RiMoneyDollarCircleLine className="size-4 text-amber-600 dark:text-amber-400" />
+            <span>অন্যান্য খরচ</span>
+            <Badge
+              variant={activeTab === "other-costs" ? "default" : "secondary"}
+              className={`ml-1 px-2 py-0.5 text-xs ${
+                activeTab === "other-costs"
+                  ? "bg-amber-600 text-white hover:bg-amber-600"
+                  : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+              }`}
+            >
+              ব্যয়
+            </Badge>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleTabChange("users")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
               activeTab === "users"
@@ -442,6 +520,15 @@ function DashboardTabsContent({
             </Link>
           )}
 
+          {activeTab === "other-costs" && (
+            <Link
+              href="/dashboard/other-costs"
+              className="inline-flex items-center gap-1 font-medium text-amber-700 hover:underline dark:text-amber-400"
+            >
+              পূর্ণাঙ্গ খরচ পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
+            </Link>
+          )}
+
           {activeTab === "users" && (
             <Link
               href="/dashboard/users"
@@ -479,6 +566,12 @@ function DashboardTabsContent({
           </div>
         )}
 
+        {activeTab === "other-costs" && (
+          <div className="animate-in fade-in duration-200">
+            <OtherCostManagement />
+          </div>
+        )}
+
         {activeTab === "users" && (
           <div className="animate-in fade-in duration-200">
             <UserManagement initialUsers={initialUsers} />
@@ -494,8 +587,8 @@ export default function DashboardTabs(props: DashboardTabsProps) {
     <Suspense
       fallback={
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-            {[1, 2, 3, 4, 5].map((i) => (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
                 className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100/60 dark:border-slate-800 dark:bg-slate-800/60"

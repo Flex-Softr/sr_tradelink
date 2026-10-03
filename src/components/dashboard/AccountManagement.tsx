@@ -22,7 +22,6 @@ import {
   RiMailLine,
   RiSaveLine,
   RiShieldCheckLine,
-  RiShieldUserLine,
   RiUser3Line,
   RiUserSettingsLine,
 } from "@remixicon/react";
@@ -64,8 +63,6 @@ export default function AccountManagement({ initialUser }: AccountManagementProp
   const [isPasswordPending, startPasswordTransition] = useTransition();
 
   const userInitial = user.name ? user.name.charAt(0).toUpperCase() : "A";
-  const roleName = user.role?.toUpperCase() || "USER";
-  const isAdmin = user.role?.toLowerCase() === "admin";
 
   const formattedJoinDate = user.created_at
     ? new Date(user.created_at).toLocaleDateString("bn-BD", {
@@ -182,13 +179,6 @@ export default function AccountManagement({ initialUser }: AccountManagementProp
                   <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
                     {user.name || "অজ্ঞাত ব্যবহারকারী"}
                   </h1>
-                  <Badge
-                    variant="secondary"
-                    className="bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white uppercase backdrop-blur-md"
-                  >
-                    <RiShieldUserLine className="mr-1 inline size-3.5" />
-                    {roleName}
-                  </Badge>
                 </div>
                 <p className="flex items-center gap-1.5 text-xs text-emerald-100/90 sm:text-sm">
                   <RiMailLine className="size-4 shrink-0" />
@@ -203,18 +193,16 @@ export default function AccountManagement({ initialUser }: AccountManagementProp
 
             {/* Quick Actions in Banner */}
             <div className="flex flex-wrap items-center gap-2 sm:self-center">
-              {isAdmin && (
-                <Link href="/dashboard/users">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-white/30 bg-white/10 text-white hover:bg-white hover:text-emerald-900"
-                  >
-                    <RiUserSettingsLine className="size-4" />
-                    <span>সকল ব্যবহারকারী</span>
-                  </Button>
-                </Link>
-              )}
+              <Link href="/dashboard/users">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-white/30 bg-white/10 text-white hover:bg-white hover:text-emerald-900"
+                >
+                  <RiUserSettingsLine className="size-4" />
+                  <span>সকল ব্যবহারকারী</span>
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"
@@ -559,11 +547,6 @@ export default function AccountManagement({ initialUser }: AccountManagementProp
                 </Badge>
               </div>
 
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">ভূমিকা ও অধিকার</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{roleName}</span>
-              </div>
-
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 dark:text-slate-400">সেশন স্থিতি</span>
                 <div className="flex items-center gap-1.5 font-medium text-emerald-600">
@@ -572,17 +555,15 @@ export default function AccountManagement({ initialUser }: AccountManagementProp
                 </div>
               </div>
 
-              {isAdmin && (
-                <div className="pt-2">
-                  <Link
-                    href="/dashboard/users"
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <span className="font-medium">সকল ব্যবহারকারী অ্যাকাউন্ট পরিচালনা</span>
-                    <RiArrowRightLine className="size-4" />
-                  </Link>
-                </div>
-              )}
+              <div className="pt-2">
+                <Link
+                  href="/dashboard/users"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <span className="font-medium">সকল ব্যবহারকারী অ্যাকাউন্ট পরিচালনা</span>
+                  <RiArrowRightLine className="size-4" />
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
