@@ -276,7 +276,6 @@ async function sync() {
       price: priceNum,
       description: `${fp.name}${fp.subtitle ? ` - ${fp.subtitle}` : ""}। উচ্চমানের প্রিমিয়াম গবাদি পশু খাদ্য।`,
       image: cleanImg,
-      badge: fp.badge || "",
     };
 
     if (!isDryRun) {
@@ -430,7 +429,7 @@ async function sync() {
           paid_amount = joma;
           due_amount = baki > 0 ? baki : Math.max(0, kroy - joma);
         } else if (joma > 0) {
-          amount = joma;
+          amount = 0;
           paid_amount = joma;
           due_amount = 0;
         } else if (baki > 0) {
@@ -453,6 +452,27 @@ async function sync() {
         }
         clientTxCount++;
       }
+    }
+
+    // Calculate and update customer total_due
+    let totalDebit = 0;
+    let totalCredit = 0;
+    if (client.transactions && Array.isArray(client.transactions)) {
+      for (const tx of client.transactions) {
+        const kroy = Math.max(0, Number(tx.kroy) || 0);
+        const joma = Math.max(0, Number(tx.joma) || 0);
+        const baki = Math.max(0, Number(tx.baki) || 0);
+        totalDebit += kroy > 0 ? kroy : baki > 0 && joma === 0 ? baki : 0;
+        totalCredit += joma;
+      }
+    }
+    const customerTotalDue = Math.max(0, parseFloat((totalDebit - totalCredit).toFixed(2)));
+
+    if (!isDryRun) {
+      await prisma.customer.update({
+        where: { id: custId },
+        data: { total_due: customerTotalDue },
+      });
     }
   }
   console.log(`✅ Clients synced: ${clientsCount}, Client Transactions: ${clientTxCount}`);

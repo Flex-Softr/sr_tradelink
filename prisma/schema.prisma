@@ -55,6 +55,7 @@ model Customer {
   name         String
   phone        String?       @unique
   address      String?
+  total_due    Float?        @default(0.0) @map("total_due")
   transactions Transaction[]
   created_at   DateTime      @default(now()) @map("created_at")
   updated_at   DateTime      @updatedAt @map("updated_at")
@@ -106,5 +107,19 @@ model PartyTransaction {
 
   @@index([party_id])
   @@map("party_transactions")
+}
+
+model OtherCost {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  category    String?  @default("other")
+  amount      Float    @default(0.0)
+  date        DateTime @default(now())
+  voucher_no  String?  @map("voucher_no")
+  description String?
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+
+  @@map("other_costs")
 }
 
