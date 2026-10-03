@@ -7,7 +7,7 @@ import { getServerSession } from "next-auth";
 
 import CustomerManagement from "@/components/dashboard/CustomerManagement";
 import { authOptions } from "@/lib/auth";
-import { getCustomers } from "@/lib/customers";
+import { getPaginatedCustomers } from "@/lib/customers";
 
 export const metadata: Metadata = {
   title: "গ্রাহক ব্যবস্থাপনা | SR Tradelink Admin",
@@ -21,7 +21,7 @@ export default async function CustomersPage() {
     redirect("/login?callbackUrl=/dashboard/customers");
   }
 
-  const initialCustomers = await getCustomers();
+  const initialData = await getPaginatedCustomers({ page: 1, limit: 20 });
 
   return (
     <div className="py-8">
@@ -46,8 +46,8 @@ export default async function CustomersPage() {
           </span>
         </div>
 
-        {/* Customer Management Component with 20 items per page pagination */}
-        <CustomerManagement initialCustomers={initialCustomers} />
+        {/* Customer Management Component with Server-Side Pagination */}
+        <CustomerManagement initialData={initialData} />
       </div>
     </div>
   );

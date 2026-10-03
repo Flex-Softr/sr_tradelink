@@ -44,7 +44,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
   }
 
   const [transactionsData, summary] = await Promise.all([
-    getTransactionsByCustomerId(id, { limit: 1000 }),
+    getTransactionsByCustomerId(id, { page: 1, limit: 20 }),
     getCustomerTransactionSummary(id),
   ]);
 
@@ -55,6 +55,12 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
           customer={customer}
           initialTransactions={transactionsData.transactions}
           initialSummary={summary}
+          initialPagination={{
+            total: transactionsData.total,
+            totalPages: transactionsData.totalPages,
+            currentPage: transactionsData.currentPage,
+            limit: transactionsData.limit,
+          }}
         />
       </div>
     </div>

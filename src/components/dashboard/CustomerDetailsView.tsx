@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import Link from "next/link";
 
@@ -17,12 +17,12 @@ import {
   RiExchangeDollarLine,
   RiEyeLine,
   RiFileExcel2Line,
+  RiFileList3Line,
   RiFilePdf2Line,
   RiFileTextLine,
   RiFilterLine,
   RiHandCoinLine,
   RiLoader4Line,
-  RiMailLine,
   RiMapPinLine,
   RiPhoneLine,
   RiPrinterLine,
@@ -30,7 +30,6 @@ import {
   RiSearchLine,
   RiShieldCheckLine,
   RiShoppingBag3Line,
-  RiVipCrownLine,
   RiWallet3Line,
 } from "@remixicon/react";
 
@@ -76,22 +75,50 @@ interface CustomerDetailsViewProps {
   customer: Customer;
   initialTransactions: Transaction[];
   initialSummary: CustomerTransactionSummary;
+  initialPagination?: {
+    total: number;
+    totalPages: number;
+    currentPage: number;
+    limit: number;
+  };
 }
 
 export default function CustomerDetailsView({
   customer,
   initialTransactions,
   initialSummary,
+  initialPagination,
 }: CustomerDetailsViewProps) {
   const [transactionsList, setTransactionsList] = useState<Transaction[]>(initialTransactions);
+  const [totalItems, setTotalItems] = useState<number>(
+    initialPagination?.total ?? initialTransactions.length
+  );
+  const [totalPages, setTotalPages] = useState<number>(
+    initialPagination?.totalPages ?? Math.max(1, Math.ceil(initialTransactions.length / 20))
+  );
+  const [currentPage, setCurrentPage] = useState<number>(initialPagination?.currentPage ?? 1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(initialPagination?.limit ?? 20);
   const [summary, setSummary] = useState<CustomerTransactionSummary>(initialSummary);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Pagination state (20 items per page default)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  // Toast / notification
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const showFeedback = useCallback((type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => {
+      setNotification((curr) => (curr?.message === message ? null : curr));
+    }, 4500);
+  }, []);
+
+  const isInitialMount = useRef(true);
 
   // Dialog states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -111,6 +138,60 @@ export default function CustomerDetailsView({
   const [exportStartDate, setExportStartDate] = useState<string>("");
   const [exportEndDate, setExportEndDate] = useState<string>("");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Fetch transactions from server with pagination, search, and date filters
+  const fetchTransactions = useCallback(
+    async (page: number, limit: number, search: string, sDate: string, eDate: string) => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(limit),
+        });
+        if (search.trim()) params.set("search", search.trim());
+        if (sDate) params.set("startDate", sDate);
+        if (eDate) params.set("endDate", eDate);
+
+        const res = await fetch(`/api/customers/${customer.id}/transactions?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setTransactionsList(data.data);
+          if (data.pagination) {
+            setTotalItems(data.pagination.total);
+            setTotalPages(data.pagination.totalPages);
+            setCurrentPage(data.pagination.currentPage);
+          }
+          if (data.summary) {
+            setSummary(data.summary);
+          }
+        }
+      } catch {
+        showFeedback("error", "লেনদেন তালিকা লোড করতে সমস্যা হয়েছে");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [customer.id]
+  );
+
+  // Re-fetch whenever page, limit, search, or date filter changes
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchTransactions(currentPage, itemsPerPage, debouncedSearch, startDate, endDate);
+  }, [currentPage, itemsPerPage, debouncedSearch, startDate, endDate, fetchTransactions]);
 
   // Helper to apply quick date presets
   const applyDatePreset = (preset: string, target: "filter" | "export") => {
@@ -187,57 +268,6 @@ export default function CustomerDetailsView({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
 
-  // Toast / notification
-  const [notification, setNotification] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  const showFeedback = (type: "success" | "error", message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => {
-      setNotification((curr) => (curr?.message === message ? null : curr));
-    }, 4500);
-  };
-
-  // Recompute summary locally when list changes
-  const recalculateSummary = (list: Transaction[]) => {
-    let sales = 0;
-    let paid = 0;
-    let netDue = 0;
-
-    for (const t of list) {
-      sales += t.amount || 0;
-      paid += t.paid_amount || 0;
-      netDue += t.due_amount || 0;
-    }
-
-    setSummary({
-      totalSales: parseFloat(sales.toFixed(2)),
-      totalPaid: parseFloat(paid.toFixed(2)),
-      totalDue: parseFloat(netDue.toFixed(2)),
-      transactionCount: list.length,
-    });
-  };
-
-  // Filtered transactions (with search, type, and date range)
-  const filteredTransactions = useMemo(() => {
-    return transactionsList.filter((tx) => {
-      const term = searchTerm.toLowerCase().trim();
-      const matchesSearch =
-        !term ||
-        (tx.description && tx.description.toLowerCase().includes(term)) ||
-        String(tx.amount).includes(term) ||
-        String(tx.due_amount).includes(term);
-
-      const txDate = tx.date ? new Date(tx.date).toISOString().split("T")[0] : "";
-      const matchesStart = !startDate || (txDate && txDate >= startDate);
-      const matchesEnd = !endDate || (txDate && txDate <= endDate);
-
-      return matchesSearch && matchesStart && matchesEnd;
-    });
-  }, [transactionsList, searchTerm, startDate, endDate]);
-
   // Real-time ledger summary for the selected export scope / dates
   const currentExportLedger = useMemo(() => {
     let effStart = "";
@@ -254,30 +284,12 @@ export default function CustomerDetailsView({
     return calculateStatementLedger(transactionsList, effStart, effEnd);
   }, [transactionsList, exportScope, startDate, endDate, exportStartDate, exportEndDate]);
 
-  // Paginated slice
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
-  const paginatedTransactions = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredTransactions.slice(start, start + itemsPerPage);
-  }, [filteredTransactions, currentPage, itemsPerPage]);
-
   // Refresh data from server
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch(`/api/customers/${customer.id}/transactions?limit=1000`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setTransactionsList(data.data);
-        if (data.summary) {
-          setSummary(data.summary);
-        } else {
-          recalculateSummary(data.data);
-        }
-        showFeedback("success", "লেনদেন তালিকা সফলভাবে রিফ্রেশ করা হয়েছে");
-      }
+      await fetchTransactions(currentPage, itemsPerPage, debouncedSearch, startDate, endDate);
+      showFeedback("success", "লেনদেন তালিকা সফলভাবে রিফ্রেশ করা হয়েছে");
     } catch {
       showFeedback("error", "রিফ্রেশ করতে সমস্যা হয়েছে");
     } finally {
@@ -301,19 +313,31 @@ export default function CustomerDetailsView({
       effEnd = exportEndDate;
     }
 
-    const ledger = calculateStatementLedger(transactionsList, effStart, effEnd);
+    setIsGeneratingPdf(true);
+    try {
+      const params = new URLSearchParams({ all: "true" });
+      if (exportScope === "filtered" && debouncedSearch.trim()) {
+        params.set("search", debouncedSearch.trim());
+      }
+      if (effStart) params.set("startDate", effStart);
+      if (effEnd) params.set("endDate", effEnd);
 
-    if (ledger.entries.length === 0 && !ledger.startDate) {
-      showFeedback("error", "ডাউনলোড করার মতো কোনো লেনদেন নেই");
-      return;
-    }
+      const res = await fetch(`/api/customers/${customer.id}/transactions?${params.toString()}`);
+      const data = await res.json();
+      const allTx: Transaction[] =
+        data.success && Array.isArray(data.data) ? data.data : transactionsList;
 
-    if (format === "pdf") {
-      try {
-        setIsGeneratingPdf(true);
+      const ledger = calculateStatementLedger(allTx, effStart, effEnd);
+
+      if (ledger.entries.length === 0 && !ledger.startDate) {
+        showFeedback("error", "ডাউনলোড করার মতো কোনো লেনদেন নেই");
+        return;
+      }
+
+      if (format === "pdf") {
         await exportCustomerStatementPDF({
           customer,
-          allTransactions: transactionsList,
+          allTransactions: allTx,
           startDate: effStart,
           endDate: effEnd,
           mode,
@@ -325,45 +349,45 @@ export default function CustomerDetailsView({
             ? `${customer.name} এর ব্যাংক স্টেটমেন্ট প্রিন্ট প্রিভিউ প্রস্তুত হয়েছে!`
             : `${customer.name} এর ব্যাংক স্টেটমেন্ট PDF সফলভাবে ডাউনলোড হয়েছে!`
         );
-      } catch (err) {
-        console.error("PDF Export error:", err);
-        showFeedback("error", "পিডিএফ স্টেটমেন্ট তৈরি করতে সমস্যা হয়েছে");
-      } finally {
-        setIsGeneratingPdf(false);
+        return;
       }
-      return;
-    }
 
-    const listToExport = ledger.entries;
-    if (format === "xlsx") {
-      exportCustomerTransactionsToExcel({
-        customer,
-        transactions: listToExport,
-        summary: {
-          totalSales: ledger.totalDebit,
-          totalPaid: ledger.totalCredit,
-          totalDue: ledger.closingBalance,
-          transactionCount: listToExport.length,
-        },
-      });
-    } else {
-      exportCustomerTransactionsToCSV({
-        customer,
-        transactions: listToExport,
-        summary: {
-          totalSales: ledger.totalDebit,
-          totalPaid: ledger.totalCredit,
-          totalDue: ledger.closingBalance,
-          transactionCount: listToExport.length,
-        },
-      });
-    }
+      const listToExport = ledger.entries;
+      if (format === "xlsx") {
+        exportCustomerTransactionsToExcel({
+          customer,
+          transactions: listToExport,
+          summary: {
+            totalSales: ledger.totalDebit,
+            totalPaid: ledger.totalCredit,
+            totalDue: ledger.closingBalance,
+            transactionCount: listToExport.length,
+          },
+        });
+      } else {
+        exportCustomerTransactionsToCSV({
+          customer,
+          transactions: listToExport,
+          summary: {
+            totalSales: ledger.totalDebit,
+            totalPaid: ledger.totalCredit,
+            totalDue: ledger.closingBalance,
+            transactionCount: listToExport.length,
+          },
+        });
+      }
 
-    setIsExportOpen(false);
-    showFeedback(
-      "success",
-      `${customer.name} এর ${listToExport.length} টি লেনদেনের শিট সফলভাবে ডাউনলোড হয়েছে!`
-    );
+      setIsExportOpen(false);
+      showFeedback(
+        "success",
+        `${customer.name} এর ${listToExport.length} টি লেনদেনের শিট সফলভাবে ডাউনলোড হয়েছে!`
+      );
+    } catch (err) {
+      console.error("PDF Export error:", err);
+      showFeedback("error", "পিডিএফ স্টেটমেন্ট তৈরি করতে সমস্যা হয়েছে");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Amount & Paid change handler with auto due calculation (can be manually overridden)
@@ -460,11 +484,9 @@ export default function CustomerDetailsView({
     startTransition(async () => {
       const res = await createTransactionAction(payload);
       if (res.success && res.data) {
-        const updatedList = [res.data, ...transactionsList];
-        setTransactionsList(updatedList);
-        recalculateSummary(updatedList);
         setIsAddOpen(false);
         showFeedback("success", "নতুন লেনদেন সফলভাবে যুক্ত করা হয়েছে!");
+        await fetchTransactions(1, itemsPerPage, debouncedSearch, startDate, endDate);
       } else {
         showFeedback("error", res.error || "লেনদেন যুক্ত করতে সমস্যা হয়েছে");
       }
@@ -487,12 +509,10 @@ export default function CustomerDetailsView({
     startTransition(async () => {
       const res = await updateTransactionAction(activeTx.id, customer.id, payload);
       if (res.success && res.data) {
-        const updatedList = transactionsList.map((t) => (t.id === activeTx.id ? res.data! : t));
-        setTransactionsList(updatedList);
-        recalculateSummary(updatedList);
         setIsEditOpen(false);
         showFeedback("success", "লেনদেন সফলভাবে আপডেট করা হয়েছে!");
         setActiveTx(null);
+        await fetchTransactions(currentPage, itemsPerPage, debouncedSearch, startDate, endDate);
       } else {
         showFeedback("error", res.error || "লেনদেন আপডেট করতে সমস্যা হয়েছে");
       }
@@ -506,12 +526,12 @@ export default function CustomerDetailsView({
     startTransition(async () => {
       const res = await deleteTransactionAction(activeTx.id, customer.id);
       if (res.success) {
-        const updatedList = transactionsList.filter((t) => t.id !== activeTx.id);
-        setTransactionsList(updatedList);
-        recalculateSummary(updatedList);
         setIsDeleteOpen(false);
         showFeedback("success", "লেনদেন সফলভাবে মুছে ফেলা হয়েছে!");
         setActiveTx(null);
+        const targetPage =
+          transactionsList.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+        await fetchTransactions(targetPage, itemsPerPage, debouncedSearch, startDate, endDate);
       } else {
         showFeedback("error", res.error || "লেনদেন মুছে ফেলতে সমস্যা হয়েছে");
       }
@@ -578,28 +598,14 @@ export default function CustomerDetailsView({
 
               <Button
                 onClick={() => {
-                  setExportFormat("pdf");
                   setIsExportOpen(true);
                 }}
                 size="sm"
                 className="gap-1.5 border border-white/20 bg-emerald-950/40 text-xs font-semibold text-white shadow-xs backdrop-blur-xs hover:bg-emerald-950/70"
-                title="গ্রাহকের ব্যাংক ফরম্যাট লেনদেন স্টেটমেন্ট PDF তৈরি বা প্রিন্ট করুন"
+                title="গ্রাহকের ব্যাংক স্টেটমেন্ট PDF, হিসাব খতিয়ান ও এক্সেল রিপোর্ট ডাউনলোড করুন"
               >
-                <RiFilePdf2Line className="size-4 text-emerald-300" />
-                <span>স্টেটমেন্ট PDF</span>
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setExportFormat("xlsx");
-                  setIsExportOpen(true);
-                }}
-                size="sm"
-                className="gap-1.5 border border-white/20 bg-emerald-950/40 text-xs font-semibold text-white shadow-xs backdrop-blur-xs hover:bg-emerald-950/70"
-                title="গ্রাহকের সকল লেনদেন এক্সেল বা সিএসভি শিট ফরম্যাটে ডাউনলোড করুন"
-              >
-                <RiFileExcel2Line className="size-4 text-emerald-300" />
-                <span>খতিয়ান শিট</span>
+                <RiFileList3Line className="size-4 text-emerald-300" />
+                <span>Reports</span>
               </Button>
 
               <Button
@@ -759,7 +765,7 @@ export default function CustomerDetailsView({
                 variant="secondary"
                 className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
               >
-                মোট {filteredTransactions.length} টি রেকর্ড
+                মোট {totalItems} টি রেকর্ড
               </Badge>
             </div>
             <CardDescription className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -783,28 +789,13 @@ export default function CustomerDetailsView({
               variant="outline"
               size="sm"
               onClick={() => {
-                setExportFormat("pdf");
                 setIsExportOpen(true);
               }}
               className="gap-1.5 border-emerald-600/30 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-              title="গ্রাহকের ব্যাংক লেনদেন বিবরণী PDF ডাউনলোড বা প্রিন্ট করুন"
+              title="গ্রাহকের ব্যাংক স্টেটমেন্ট PDF, হিসাব খতিয়ান ও এক্সেল রিপোর্ট ডাউনলোড করুন"
             >
-              <RiFilePdf2Line className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>স্টেটমেন্ট PDF</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setExportFormat("xlsx");
-                setIsExportOpen(true);
-              }}
-              className="gap-1.5 border-slate-300 text-xs text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
-              title="সকল লেনদেনের খতিয়ান শিট ডাউনলোড করুন"
-            >
-              <RiFileExcel2Line className="size-3.5 text-slate-600 dark:text-slate-400" />
-              <span>শিট ডাউনলোড</span>
+              <RiFileList3Line className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Reports</span>
             </Button>
 
             <Button
@@ -918,7 +909,7 @@ export default function CustomerDetailsView({
               {/* Status & Reset */}
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                  ফিল্টারে: <strong>{filteredTransactions.length}</strong> টি লেনদেন
+                  ফিল্টারে: <strong>{totalItems}</strong> টি লেনদেন
                 </span>
                 {(startDate || endDate || searchTerm) && (
                   <button
@@ -941,11 +932,22 @@ export default function CustomerDetailsView({
           </div>
 
           {/* Transactions Table */}
-          <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="relative overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+            {isLoading && (
+              <div className="backdrop-blur-2xs absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-slate-950/60">
+                <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-md dark:bg-slate-900 dark:text-slate-200">
+                  <RiRefreshLine className="size-4 animate-spin text-green-600" />
+                  <span>লোড হচ্ছে...</span>
+                </div>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300">
                   <tr className="whitespace-nowrap">
+                    <th scope="col" className="w-16 px-4 py-3 text-center whitespace-nowrap">
+                      ক্রমিক নং
+                    </th>
                     <th scope="col" className="px-4 py-3 whitespace-nowrap">
                       তারিখ
                     </th>
@@ -967,9 +969,9 @@ export default function CustomerDetailsView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
-                  {paginatedTransactions.length === 0 ? (
+                  {transactionsList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center">
+                      <td colSpan={7} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-500">
                           <RiFileTextLine className="mb-2 size-10 text-slate-300 dark:text-slate-700" />
                           <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
@@ -989,7 +991,7 @@ export default function CustomerDetailsView({
                       </td>
                     </tr>
                   ) : (
-                    paginatedTransactions.map((tx) => {
+                    transactionsList.map((tx, idx) => {
                       const formattedDate = tx.date
                         ? new Date(tx.date).toLocaleDateString("bn-BD", {
                             year: "numeric",
@@ -1003,6 +1005,11 @@ export default function CustomerDetailsView({
                           key={tx.id}
                           className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                         >
+                          {/* SL Number */}
+                          <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {(currentPage - 1) * itemsPerPage + idx + 1}
+                          </td>
+
                           {/* Date */}
                           <td className="px-4 py-3 text-xs font-medium whitespace-nowrap text-slate-700 dark:text-slate-300">
                             {formattedDate}
@@ -1076,15 +1083,18 @@ export default function CustomerDetailsView({
               </table>
             </div>
 
-            {/* Pagination component (20 items per page default) */}
+            {/* Pagination component */}
             <div className="bg-slate-50/50 px-4 dark:bg-slate-900/50">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
-                totalItems={filteredTransactions.length}
+                totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
-                onItemsPerPageChange={setItemsPerPage}
+                onItemsPerPageChange={(newLimit) => {
+                  setItemsPerPage(newLimit);
+                  setCurrentPage(1);
+                }}
                 itemName="লেনদেন"
               />
             </div>
@@ -1564,7 +1574,7 @@ export default function CustomerDetailsView({
                     অন-স্ক্রিন ফিল্টার
                   </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                    বর্তমান {filteredTransactions.length} টি
+                    ফিল্টারকৃত {totalItems} টি
                   </span>
                 </button>
 

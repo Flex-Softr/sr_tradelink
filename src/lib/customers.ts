@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 export interface Customer {
@@ -5,6 +7,8 @@ export interface Customer {
   name: string;
   phone?: string | null;
   address?: string | null;
+  total_due?: number | null;
+  due?: number | null;
   created_at?: Date | string;
   updated_at?: Date | string;
 }
@@ -13,12 +17,29 @@ export interface CustomerInput {
   name: string;
   phone?: string | null;
   address?: string | null;
+  total_due?: number | null;
 }
 
 export interface GetCustomersOptions {
   search?: string;
+  page?: number;
   limit?: number;
   skip?: number;
+}
+
+export interface CustomerStats {
+  total: number;
+  totalDue: number;
+  dueCustomersCount: number;
+}
+
+export interface PaginatedCustomersResult {
+  customers: Customer[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  limit: number;
+  stats: CustomerStats;
 }
 
 let indexesEnsured = false;
@@ -56,6 +77,163 @@ export async function ensureCustomerSparseIndexes(): Promise<void> {
     indexesEnsured = true;
   } catch (error) {
     console.warn("Could not configure partial indexes on customers collection:", error);
+  }
+}
+
+/**
+ * Recalculate customer's total due based on all their transactions
+ * and update the customer record in the database.
+ */
+export async function calculateAndUpdateCustomerDue(
+  customerId: string,
+  txClient?: Prisma.TransactionClient
+): Promise<number> {
+  const db = txClient || prisma;
+
+  const transactions = await db.transaction.findMany({
+    where: { customer_id: customerId },
+    select: {
+      amount: true,
+      paid_amount: true,
+      due_amount: true,
+    },
+  });
+
+  let totalDebit = 0;
+  let totalCredit = 0;
+
+  for (const tx of transactions) {
+    const amount = Number(tx.amount) || 0;
+    const dueAmount = Number(tx.due_amount) || 0;
+    const paidAmount = Number(tx.paid_amount) || 0;
+
+    // If amount is positive, that's debit. If amount is 0 and due_amount > 0 and paid is 0, that's initial due.
+    totalDebit += amount > 0 ? amount : dueAmount > 0 && paidAmount === 0 ? dueAmount : 0;
+    totalCredit += paidAmount;
+  }
+
+  const calculatedDue = Math.max(0, parseFloat((totalDebit - totalCredit).toFixed(2)));
+
+  await db.customer.update({
+    where: { id: customerId },
+    data: { total_due: calculatedDue },
+  });
+
+  return calculatedDue;
+}
+
+/**
+ * Fetch overall customer statistics (total customer count, total due sum, and due customer count)
+ */
+export async function getCustomerStats(): Promise<CustomerStats> {
+  try {
+    const [total, dueCount, dueAgg] = await Promise.all([
+      prisma.customer.count(),
+      prisma.customer.count({
+        where: { total_due: { gt: 0 } },
+      }),
+      prisma.customer.aggregate({
+        _sum: {
+          total_due: true,
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      dueCustomersCount: dueCount,
+      totalDue: parseFloat((dueAgg._sum.total_due || 0).toFixed(2)),
+    };
+  } catch (error) {
+    console.error("Error fetching customer stats:", error);
+    return {
+      total: 0,
+      totalDue: 0,
+      dueCustomersCount: 0,
+    };
+  }
+}
+
+/**
+ * Fetch paginated customers with server-side search and pagination
+ */
+export async function getPaginatedCustomers(
+  options: GetCustomersOptions = {}
+): Promise<PaginatedCustomersResult> {
+  try {
+    await ensureCustomerSparseIndexes();
+
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.max(1, options.limit || 20);
+    const skip = options.skip !== undefined ? options.skip : (page - 1) * limit;
+
+    const whereClause: {
+      AND?: Array<{
+        OR?: Array<{
+          name?: { contains: string; mode: "insensitive" };
+          phone?: { contains: string; mode: "insensitive" };
+          address?: { contains: string; mode: "insensitive" };
+        }>;
+      }>;
+    } = {};
+
+    const conditions = [];
+
+    if (options.search?.trim()) {
+      const term = options.search.trim();
+      conditions.push({
+        OR: [
+          { name: { contains: term, mode: "insensitive" as const } },
+          { phone: { contains: term, mode: "insensitive" as const } },
+          { address: { contains: term, mode: "insensitive" as const } },
+        ],
+      });
+    }
+
+    if (conditions.length > 0) {
+      whereClause.AND = conditions;
+    }
+
+    const [customers, total, stats] = await Promise.all([
+      prisma.customer.findMany({
+        where: whereClause,
+        orderBy: { created_at: "desc" },
+        take: limit,
+        skip,
+      }),
+      prisma.customer.count({ where: whereClause }),
+      getCustomerStats(),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      customers: customers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        address: c.address,
+        total_due: c.total_due ?? 0,
+        due: c.total_due ?? 0,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+      })),
+      total,
+      totalPages,
+      currentPage: page,
+      limit,
+      stats,
+    };
+  } catch (error) {
+    console.error("Error fetching paginated customers:", error);
+    return {
+      customers: [],
+      total: 0,
+      totalPages: 1,
+      currentPage: options.page || 1,
+      limit: options.limit || 20,
+      stats: { total: 0, totalDue: 0, dueCustomersCount: 0 },
+    };
   }
 }
 
@@ -105,6 +283,8 @@ export async function getCustomers(options: GetCustomersOptions = {}): Promise<C
       name: c.name,
       phone: c.phone,
       address: c.address,
+      total_due: c.total_due ?? 0,
+      due: c.total_due ?? 0,
       created_at: c.created_at,
       updated_at: c.updated_at,
     }));
@@ -130,6 +310,8 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
       name: customer.name,
       phone: customer.phone,
       address: customer.address,
+      total_due: customer.total_due ?? 0,
+      due: customer.total_due ?? 0,
       created_at: customer.created_at,
       updated_at: customer.updated_at,
     };
@@ -145,7 +327,7 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
   await ensureCustomerSparseIndexes();
 
-  const { name, phone, address } = input;
+  const { name, phone, address, total_due } = input;
 
   if (!name?.trim()) {
     throw new Error("গ্রাহকের নাম আবশ্যক");
@@ -171,6 +353,7 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
       name: name.trim(),
       phone: cleanPhone,
       address: cleanAddress,
+      total_due: total_due !== undefined && total_due !== null ? Number(total_due) : 0,
     },
   });
 
@@ -179,6 +362,8 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
     name: newCustomer.name,
     phone: newCustomer.phone,
     address: newCustomer.address,
+    total_due: newCustomer.total_due ?? 0,
+    due: newCustomer.total_due ?? 0,
     created_at: newCustomer.created_at,
     updated_at: newCustomer.updated_at,
   };
@@ -206,6 +391,7 @@ export async function updateCustomer(id: string, input: Partial<CustomerInput>):
     name?: string;
     phone?: string | null;
     address?: string | null;
+    total_due?: number | null;
   } = {};
 
   if (input.name !== undefined) {
@@ -230,6 +416,10 @@ export async function updateCustomer(id: string, input: Partial<CustomerInput>):
     data.address = input.address?.trim() ? input.address.trim() : null;
   }
 
+  if (input.total_due !== undefined) {
+    data.total_due = input.total_due !== null ? Number(input.total_due) : 0;
+  }
+
   const updated = await prisma.customer.update({
     where: { id },
     data,
@@ -240,6 +430,8 @@ export async function updateCustomer(id: string, input: Partial<CustomerInput>):
     name: updated.name,
     phone: updated.phone,
     address: updated.address,
+    total_due: updated.total_due ?? 0,
+    due: updated.total_due ?? 0,
     created_at: updated.created_at,
     updated_at: updated.updated_at,
   };

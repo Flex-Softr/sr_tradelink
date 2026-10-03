@@ -16,11 +16,24 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || undefined;
+    const startDate = searchParams.get("startDate") || undefined;
+    const endDate = searchParams.get("endDate") || undefined;
+    const all = searchParams.get("all") === "true";
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 20;
+    const limit = all
+      ? 10000
+      : searchParams.get("limit")
+        ? parseInt(searchParams.get("limit")!, 10)
+        : 20;
 
     const [transactionsData, summary] = await Promise.all([
-      getTransactionsByCustomerId(customerId, { search, page, limit }),
+      getTransactionsByCustomerId(customerId, {
+        search,
+        startDate,
+        endDate,
+        page,
+        limit,
+      }),
       getCustomerTransactionSummary(customerId),
     ]);
 

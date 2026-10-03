@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import Link from "next/link";
 
@@ -15,9 +15,7 @@ import {
   RiFileExcel2Line,
   RiFilePdf2Line,
   RiFileTextLine,
-  RiFilterLine,
   RiLoader4Line,
-  RiMailLine,
   RiMapPinLine,
   RiPhoneLine,
   RiPrinterLine,
@@ -26,7 +24,6 @@ import {
   RiStoreLine,
   RiUserAddLine,
   RiUserLine,
-  RiVipCrownLine,
 } from "@remixicon/react";
 
 import {
@@ -51,18 +48,54 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
-import { type Customer, type CustomerInput } from "@/lib/customers";
+import {
+  type Customer,
+  type CustomerInput,
+  type CustomerStats,
+  type PaginatedCustomersResult,
+} from "@/lib/customers";
 import { exportCustomerListPDF } from "@/lib/pdf-export";
 import { exportCustomersToCSV, exportCustomersToExcel } from "@/lib/sheet-export";
 
 interface CustomerManagementProps {
-  initialCustomers: Customer[];
+  initialData?: PaginatedCustomersResult;
+  initialCustomers?: Customer[];
 }
 
-export default function CustomerManagement({ initialCustomers }: CustomerManagementProps) {
-  const [customersList, setCustomersList] = useState<Customer[]>(initialCustomers);
+export default function CustomerManagement({
+  initialData,
+  initialCustomers,
+}: CustomerManagementProps) {
+  const [customersList, setCustomersList] = useState<Customer[]>(
+    initialData?.customers || initialCustomers || []
+  );
+  const [totalItems, setTotalItems] = useState<number>(
+    initialData?.total ?? (initialCustomers?.length || 0)
+  );
+  const [totalPages, setTotalPages] = useState<number>(
+    initialData?.totalPages ?? Math.max(1, Math.ceil((initialCustomers?.length || 0) / 20))
+  );
+  const [currentPage, setCurrentPage] = useState<number>(initialData?.currentPage ?? 1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(initialData?.limit ?? 20);
+  const [stats, setStats] = useState<CustomerStats>(
+    initialData?.stats ?? {
+      total: initialCustomers?.length || 0,
+      totalDue: (initialCustomers || []).reduce(
+        (acc, c) => acc + (Number(c.total_due ?? c.due) || 0),
+        0
+      ),
+      dueCustomersCount: (initialCustomers || []).filter(
+        (c) => (Number(c.total_due ?? c.due) || 0) > 0
+      ).length,
+    }
+  );
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const isInitialMount = useRef(true);
 
   // Dialog states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -100,45 +133,60 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
     }, 4000);
   };
 
-  // Filter customers by search
-  const filteredCustomers = useMemo(() => {
-    return customersList.filter((customer) => {
-      const term = searchTerm.toLowerCase().trim();
-      const matchesSearch =
-        !term ||
-        customer.name.toLowerCase().includes(term) ||
-        (customer.phone && customer.phone.toLowerCase().includes(term)) ||
-        (customer.address && customer.address.toLowerCase().includes(term));
+  // Debounce search term changes by 350ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
-      return matchesSearch;
-    });
-  }, [customersList, searchTerm]);
+  // Fetch customers from server with pagination and search
+  const fetchCustomers = useCallback(async (page: number, limit: number, search: string) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+      const res = await fetch(`/api/customers?${params.toString()}`, { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setCustomersList(data.data);
+        if (data.pagination) {
+          setTotalItems(data.pagination.total);
+          setTotalPages(data.pagination.totalPages);
+          setCurrentPage(data.pagination.currentPage);
+        }
+        if (data.stats) {
+          setStats(data.stats);
+        }
+      }
+    } catch {
+      showFeedback("error", "গ্রাহক তথ্য লোড করতে সমস্যা হয়েছে");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  // Pagination (20 items per page by default)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
-
-  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
-  const paginatedCustomers = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredCustomers.slice(start, start + itemsPerPage);
-  }, [filteredCustomers, currentPage, itemsPerPage]);
-
-  // Summary counts
-  const stats = useMemo(() => {
-    return { total: customersList.length };
-  }, [customersList]);
+  // Re-fetch when page, limit, or search change
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchCustomers(currentPage, itemsPerPage, debouncedSearch);
+  }, [currentPage, itemsPerPage, debouncedSearch, fetchCustomers]);
 
   // Refresh customers from API
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/customers", { cache: "no-store" });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setCustomersList(data.data);
-        showFeedback("success", "গ্রাহক তালিকা সফলভাবে রিফ্রেশ করা হয়েছে");
-      }
+      await fetchCustomers(currentPage, itemsPerPage, debouncedSearch);
+      showFeedback("success", "গ্রাহক তালিকা সফলভাবে রিফ্রেশ করা হয়েছে");
     } catch {
       showFeedback("error", "রিফ্রেশ করতে ব্যর্থ হয়েছে");
     } finally {
@@ -146,22 +194,35 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
     }
   };
 
-  // Export customers sheet & PDF
+  // Export customers sheet & PDF (fetches full matching set from server)
   const handleExport = async (
     format: "pdf" | "xlsx" | "csv",
     mode: "download" | "print" = "download"
   ) => {
-    const listToExport = exportScope === "filtered" ? filteredCustomers : customersList;
-    if (listToExport.length === 0) {
-      showFeedback("error", "ডাউনলোড করার মতো কোনো গ্রাহক পাওয়া যায়নি");
-      return;
-    }
-    const today = new Date().toISOString().split("T")[0];
-    const prefix = exportScope === "filtered" ? "ফিল্টারকৃত_গ্রাহক_তালিকা" : "সকল_গ্রাহক_তালিকা";
+    setIsGeneratingPdf(true);
+    try {
+      let listToExport: Customer[] = [];
+      const isFiltered = exportScope === "filtered" && debouncedSearch.trim();
+      const queryUrl = isFiltered
+        ? `/api/customers?all=true&search=${encodeURIComponent(debouncedSearch.trim())}`
+        : `/api/customers?all=true`;
 
-    if (format === "pdf") {
-      try {
-        setIsGeneratingPdf(true);
+      const res = await fetch(queryUrl, { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        listToExport = data.data;
+      } else {
+        listToExport = customersList;
+      }
+
+      if (listToExport.length === 0) {
+        showFeedback("error", "ডাউনলোড করার মতো কোনো গ্রাহক পাওয়া যায়নি");
+        return;
+      }
+      const today = new Date().toISOString().split("T")[0];
+      const prefix = isFiltered ? "ফিল্টারকৃত_গ্রাহক_তালিকা" : "সকল_গ্রাহক_তালিকা";
+
+      if (format === "pdf") {
         await exportCustomerListPDF({
           customers: listToExport,
           filterScope: exportScope,
@@ -175,22 +236,22 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
             ? "গ্রাহক তালিকা প্রিন্ট প্রিভিউ প্রস্তুত হয়েছে!"
             : `${listToExport.length} জন গ্রাহকের PDF তালিকা সফলভাবে ডাউনলোড হয়েছে!`
         );
-      } catch (err) {
-        console.error("PDF Export error:", err);
-        showFeedback("error", "পিডিএফ রিপোর্ট তৈরি করতে সমস্যা হয়েছে");
-      } finally {
-        setIsGeneratingPdf(false);
+        return;
       }
-      return;
-    }
 
-    if (format === "xlsx") {
-      exportCustomersToExcel(listToExport, `${prefix}_${today}.xlsx`);
-    } else {
-      exportCustomersToCSV(listToExport, `${prefix}_${today}.csv`);
+      if (format === "xlsx") {
+        exportCustomersToExcel(listToExport, `${prefix}_${today}.xlsx`);
+      } else {
+        exportCustomersToCSV(listToExport, `${prefix}_${today}.csv`);
+      }
+      setIsExportOpen(false);
+      showFeedback("success", `${listToExport.length} জন গ্রাহকের শিট সফলভাবে ডাউনলোড হয়েছে!`);
+    } catch (err) {
+      console.error("Export error:", err);
+      showFeedback("error", "রিপোর্ট তৈরি করতে সমস্যা হয়েছে");
+    } finally {
+      setIsGeneratingPdf(false);
     }
-    setIsExportOpen(false);
-    showFeedback("success", `${listToExport.length} জন গ্রাহকের শিট সফলভাবে ডাউনলোড হয়েছে!`);
   };
 
   // Open Add Dialog
@@ -255,9 +316,9 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
       const res = await createCustomerAction(formData);
 
       if (res.success && res.data) {
-        setCustomersList((prev) => [res.data!, ...prev]);
         setIsAddOpen(false);
         showFeedback("success", `গ্রাহক "${res.data.name}" সফলভাবে তৈরি করা হয়েছে!`);
+        await fetchCustomers(1, itemsPerPage, debouncedSearch);
       } else {
         showFeedback("error", res.error || "গ্রাহক তৈরি করতে ব্যর্থ হয়েছে");
       }
@@ -276,6 +337,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
         setCustomersList((prev) => prev.map((c) => (c.id === activeCustomer.id ? res.data! : c)));
         setIsEditOpen(false);
         showFeedback("success", `"${res.data.name}" এর তথ্য সফলভাবে আপডেট করা হয়েছে!`);
+        await fetchCustomers(currentPage, itemsPerPage, debouncedSearch);
       } else {
         showFeedback("error", res.error || "গ্রাহকের তথ্য আপডেট করতে ব্যর্থ হয়েছে");
       }
@@ -290,10 +352,12 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
       const res = await deleteCustomerAction(activeCustomer.id);
 
       if (res.success) {
-        setCustomersList((prev) => prev.filter((c) => c.id !== activeCustomer.id));
         setIsDeleteOpen(false);
         showFeedback("success", `গ্রাহক "${activeCustomer.name}" সফলভাবে মুছে ফেলা হয়েছে!`);
         setActiveCustomer(null);
+        const targetPage =
+          customersList.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+        await fetchCustomers(targetPage, itemsPerPage, debouncedSearch);
       } else {
         showFeedback("error", res.error || "গ্রাহক মুছে ফেলতে ব্যর্থ হয়েছে");
       }
@@ -344,6 +408,15 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
               >
                 মোট {stats.total} জন গ্রাহক
               </Badge>
+              {stats.totalDue > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="bg-rose-50 text-xs font-semibold text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/60 dark:text-rose-300"
+                >
+                  সর্বমোট বকেয়া: ৳ {stats.totalDue.toLocaleString("en-IN")} (
+                  {stats.dueCustomersCount} জন)
+                </Badge>
+              )}
             </div>
             <CardDescription className="mt-1">
               খুচরা, পাইকারি ও ভিআইপি গ্রাহক প্রোফাইল তৈরি, পরিচালনা ও আপডেট করুন
@@ -418,7 +491,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
           </div>
 
           {/* Table */}
-          {filteredCustomers.length === 0 ? (
+          {customersList.length === 0 && !isLoading ? (
             <div className="py-14 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                 <RiUserLine className="size-6" />
@@ -437,6 +510,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                   size="sm"
                   onClick={() => {
                     setSearchTerm("");
+                    setCurrentPage(1);
                   }}
                   className="mt-4"
                 >
@@ -445,10 +519,21 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
+            <div className="relative overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
+              {isLoading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px] dark:bg-slate-950/60">
+                  <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-md ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+                    <RiLoader4Line className="size-4 animate-spin text-green-600" />
+                    <span>লোড হচ্ছে...</span>
+                  </div>
+                </div>
+              )}
               <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
                   <tr className="whitespace-nowrap">
+                    <th scope="col" className="w-12 px-3 py-3.5 text-center whitespace-nowrap">
+                      SL
+                    </th>
                     <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                       গ্রাহকের নাম ও আইডি
                     </th>
@@ -459,122 +544,147 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                       ঠিকানা
                     </th>
                     <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
+                      মোট বকেয়া (Due)
+                    </th>
+                    <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
                       অ্যাকশন
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
-                  {paginatedCustomers.map((cust) => (
-                    <tr
-                      key={cust.id}
-                      className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
-                    >
-                      {/* Name & Avatar */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar size="sm" className="ring-1 ring-slate-200 dark:ring-slate-800">
-                            <AvatarFallback className="bg-green-100 font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
-                              {cust.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <Link
-                                href={`/dashboard/customers/${cust.id}`}
-                                className="font-bold text-slate-900 hover:text-green-600 hover:underline dark:text-white dark:hover:text-green-400"
-                                title="গ্রাহকের লেনদেন ও বিস্তারিত দেখুন"
+                  {customersList.map((cust, idx) => {
+                    const dueVal = Number(cust.total_due ?? cust.due) || 0;
+                    const slNumber = (currentPage - 1) * itemsPerPage + idx + 1;
+                    return (
+                      <tr
+                        key={cust.id}
+                        className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
+                      >
+                        {/* SL No */}
+                        <td className="w-12 px-3 py-3 text-center font-mono text-xs text-slate-400 dark:text-slate-500">
+                          {slNumber}
+                        </td>
+
+                        {/* Name & Avatar */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar size="sm" className="ring-1 ring-slate-200 dark:ring-slate-800">
+                              <AvatarFallback className="bg-green-100 font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
+                                {cust.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <Link
+                                  href={`/dashboard/customers/${cust.id}`}
+                                  className="font-bold text-slate-900 hover:text-green-600 hover:underline dark:text-white dark:hover:text-green-400"
+                                  title="গ্রাহকের লেনদেন ও বিস্তারিত দেখুন"
+                                >
+                                  {cust.name}
+                                </Link>
+                              </div>
+                              <div className="font-mono text-xs text-slate-400 dark:text-slate-500">
+                                ID: {cust.id.slice(-6)}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Contact: Phone & Email */}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-0.5 text-xs">
+                            {cust.phone ? (
+                              <a
+                                href={`tel:${cust.phone}`}
+                                className="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-green-700 dark:text-slate-300 dark:hover:text-green-400"
                               >
-                                {cust.name}
-                              </Link>
-                            </div>
-                            <div className="font-mono text-xs text-slate-400 dark:text-slate-500">
-                              ID: {cust.id.slice(-6)}
-                            </div>
+                                <RiPhoneLine className="size-3.5 text-slate-400" />
+                                <span>{cust.phone}</span>
+                              </a>
+                            ) : (
+                              <span className="text-slate-400">ফোন নেই</span>
+                            )}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Contact: Phone & Email */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-0.5 text-xs">
-                          {cust.phone ? (
-                            <a
-                              href={`tel:${cust.phone}`}
-                              className="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-green-700 dark:text-slate-300 dark:hover:text-green-400"
-                            >
-                              <RiPhoneLine className="size-3.5 text-slate-400" />
-                              <span>{cust.phone}</span>
-                            </a>
+                        {/* Address */}
+                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
+                          {cust.address ? (
+                            <div className="flex max-w-xs items-start gap-1">
+                              <RiMapPinLine className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+                              <span className="line-clamp-2">{cust.address}</span>
+                            </div>
                           ) : (
-                            <span className="text-slate-400">ফোন নেই</span>
+                            <span className="text-slate-400">ঠিকানা নেই</span>
                           )}
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Address */}
-                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
-                        {cust.address ? (
-                          <div className="flex max-w-xs items-start gap-1">
-                            <RiMapPinLine className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
-                            <span className="line-clamp-2">{cust.address}</span>
+                        {/* Due Amount */}
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {dueVal > 0 ? (
+                            <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-rose-600/20 ring-inset dark:bg-rose-950/60 dark:text-rose-300">
+                              ৳ {dueVal.toLocaleString("en-IN")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              পরিশোধিত (৳ 0)
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Ledger & Transactions */}
+                            <Link
+                              href={`/dashboard/customers/${cust.id}`}
+                              className="inline-flex size-8 items-center justify-center rounded-lg text-green-600 hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-950/40"
+                              title="বিক্রয় ও বকেয়া খতিয়ান দেখুন"
+                            >
+                              <RiFileTextLine className="size-4" />
+                              <span className="sr-only">খতিয়ান</span>
+                            </Link>
+
+                            {/* Preview */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openPreviewDialog(cust)}
+                              title="বিস্তারিত দেখুন"
+                              className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            >
+                              <RiEyeLine className="size-4" />
+                              <span className="sr-only">প্রিভিউ</span>
+                            </Button>
+
+                            {/* Edit */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEditDialog(cust)}
+                              title="সম্পাদনা করুন"
+                              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                            >
+                              <RiEditLine className="size-4" />
+                              <span className="sr-only">সম্পাদনা</span>
+                            </Button>
+
+                            {/* Delete */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openDeleteDialog(cust)}
+                              title="মুছে ফেলুন"
+                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                            >
+                              <RiDeleteBinLine className="size-4" />
+                              <span className="sr-only">মুছুন</span>
+                            </Button>
                           </div>
-                        ) : (
-                          <span className="text-slate-400">ঠিকানা নেই</span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Ledger & Transactions */}
-                          <Link
-                            href={`/dashboard/customers/${cust.id}`}
-                            className="inline-flex size-8 items-center justify-center rounded-lg text-green-600 hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-950/40"
-                            title="বিক্রয় ও বকেয়া খতিয়ান দেখুন"
-                          >
-                            <RiFileTextLine className="size-4" />
-                            <span className="sr-only">খতিয়ান</span>
-                          </Link>
-
-                          {/* Preview */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openPreviewDialog(cust)}
-                            title="বিস্তারিত দেখুন"
-                            className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-                          >
-                            <RiEyeLine className="size-4" />
-                            <span className="sr-only">প্রিভিউ</span>
-                          </Button>
-
-                          {/* Edit */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEditDialog(cust)}
-                            title="সম্পাদনা করুন"
-                            className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
-                          >
-                            <RiEditLine className="size-4" />
-                            <span className="sr-only">সম্পাদনা</span>
-                          </Button>
-
-                          {/* Delete */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openDeleteDialog(cust)}
-                            title="মুছে ফেলুন"
-                            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                          >
-                            <RiDeleteBinLine className="size-4" />
-                            <span className="sr-only">মুছুন</span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -583,10 +693,13 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  totalItems={filteredCustomers.length}
+                  totalItems={totalItems}
                   itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={setItemsPerPage}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  onItemsPerPageChange={(limit) => {
+                    setItemsPerPage(limit);
+                    setCurrentPage(1);
+                  }}
                   itemName="গ্রাহক"
                 />
               </div>
@@ -852,6 +965,25 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                   </span>
                 </div>
 
+                {/* Total Due */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    বর্তমান মোট বকেয়া:
+                  </span>
+                  <span
+                    className={`text-xs font-bold ${
+                      Number(activeCustomer.total_due ?? activeCustomer.due ?? 0) > 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  >
+                    ৳{" "}
+                    {Number(activeCustomer.total_due ?? activeCustomer.due ?? 0).toLocaleString(
+                      "en-IN"
+                    )}
+                  </span>
+                </div>
+
                 {/* Created At */}
                 {activeCustomer.created_at && (
                   <div className="flex items-center justify-between text-xs text-slate-400">
@@ -911,7 +1043,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                     সকল গ্রাহক
                   </span>
                   <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    মোট {customersList.length} জন
+                    মোট {stats.total} জন
                   </span>
                 </button>
 
@@ -928,7 +1060,7 @@ export default function CustomerManagement({ initialCustomers }: CustomerManagem
                     ফিল্টারকৃত গ্রাহক
                   </span>
                   <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    বর্তমান ফিল্টারে {filteredCustomers.length} জন
+                    বর্তমান ফিল্টারে {totalItems} জন
                   </span>
                 </button>
               </div>

@@ -4,21 +4,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { createCustomer, getCustomers } from "@/lib/customers";
+import { createCustomer, getCustomers, getPaginatedCustomers } from "@/lib/customers";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
-    const skip = searchParams.get("skip") ? parseInt(searchParams.get("skip")!, 10) : undefined;
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const all = searchParams.get("all") === "true";
 
-    const customers = await getCustomers({ search, limit, skip });
+    if (all) {
+      const customers = await getCustomers({ search });
+      return NextResponse.json({
+        success: true,
+        data: customers,
+        count: customers.length,
+      });
+    }
+
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+
+    const result = await getPaginatedCustomers({ search, page, limit });
 
     return NextResponse.json({
       success: true,
-      data: customers,
-      count: customers.length,
+      data: result.customers,
+      pagination: {
+        total: result.total,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        limit: result.limit,
+      },
+      stats: result.stats,
     });
   } catch (error: unknown) {
     console.error("GET /api/customers error:", error);

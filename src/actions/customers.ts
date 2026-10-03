@@ -8,20 +8,23 @@ import { authOptions } from "@/lib/auth";
 import {
   type Customer,
   type CustomerInput,
+  type GetCustomersOptions,
+  type PaginatedCustomersResult,
   createCustomer,
   deleteCustomer,
   getCustomers,
+  getPaginatedCustomers,
   updateCustomer,
 } from "@/lib/customers";
 
-export async function fetchCustomersAction(
-  options: {
-    search?: string;
-    limit?: number;
-    skip?: number;
-  } = {}
-) {
+export async function fetchCustomersAction(options: GetCustomersOptions = {}) {
   return await getCustomers(options);
+}
+
+export async function fetchPaginatedCustomersAction(
+  options: GetCustomersOptions = {}
+): Promise<PaginatedCustomersResult> {
+  return await getPaginatedCustomers(options);
 }
 
 export async function createCustomerAction(input: CustomerInput): Promise<{
