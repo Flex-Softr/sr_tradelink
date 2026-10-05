@@ -7,6 +7,7 @@
     "build": "NODE_OPTIONS=\"--max-old-space-size=1024\" next build",
     "start": "next start",
     "start:standalone": "./start-standalone.sh",
+    "start:pm2": "pm2 start ./start-standalone.sh --name sr-tradelink",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
