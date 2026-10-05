@@ -94,10 +94,11 @@ export default function SalesReportView({
   initialCustomers = [],
   initialData,
 }: SalesReportViewProps) {
-  // Filter States: Default to "all" so all data is loaded and calculated
-  const [preset, setPreset] = useState<PeriodPreset>("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  // Filter States: Default to "month"
+  const defaultDates = getPresetDates("month");
+  const [preset, setPreset] = useState<PeriodPreset>("month");
+  const [startDate, setStartDate] = useState<string>(defaultDates.start);
+  const [endDate, setEndDate] = useState<string>(defaultDates.end);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -130,6 +131,8 @@ export default function SalesReportView({
       void (async () => {
         try {
           const res = await fetchCentralSalesReportAction({
+            startDate: defaultDates.start,
+            endDate: defaultDates.end,
             page: 1,
             limit: pageSize,
           });
@@ -199,14 +202,15 @@ export default function SalesReportView({
   };
 
   const handleResetFilters = () => {
-    setPreset("all");
-    setStartDate("");
-    setEndDate("");
+    const defaultDates = getPresetDates("month");
+    setPreset("month");
+    setStartDate(defaultDates.start);
+    setEndDate(defaultDates.end);
     setSelectedCustomerId("all");
     setSearchQuery("");
     loadReportData(1, {
-      startDate: undefined,
-      endDate: undefined,
+      startDate: defaultDates.start,
+      endDate: defaultDates.end,
       customerId: "all",
       search: undefined,
     });
