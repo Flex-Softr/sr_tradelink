@@ -1237,45 +1237,7 @@ export function generateSalesReportHTML(options: {
     periodText = `প্রারম্ভ হতে ${endDate} পর্যন্ত`;
   }
 
-  let rowsHtml = "";
-  if (transactions.length === 0) {
-    rowsHtml = `
-      <tr>
-        <td colspan="9" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">
-          নির্বাচিত সময়কালের মধ্যে কোনো বিক্রয় বা লেনদেনের রেকর্ড পাওয়া যায়নি।
-        </td>
-      </tr>
-    `;
-  } else {
-    transactions.forEach((tx, idx) => {
-      const statusBadge =
-        tx.due_amount === 0 || tx.paid_amount >= tx.amount
-          ? `<span style="color: #059669; font-weight: 700;">পরিশোধিত</span>`
-          : tx.paid_amount > 0
-            ? `<span style="color: #d97706; font-weight: 600;">আংশিক</span>`
-            : `<span style="color: #dc2626; font-weight: 700;">বকেয়া</span>`;
-
-      const customerName = tx.customer?.name || "নামবিহীন গ্রাহক";
-      const customerPhone = tx.customer?.phone || "-";
-
-      rowsHtml += `
-        <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? "background-color: #f8fafc;" : ""}">
-          <td style="padding: 6px 7px; text-align: center; color: #64748b; font-size: 10px;">${idx + 1}</td>
-          <td style="padding: 6px 7px; white-space: nowrap; font-size: 10px;">${formatDateStr(new Date(tx.date))}</td>
-          <td style="padding: 6px 7px;">
-            <div style="font-weight: 700; color: #0f172a; font-size: 10.5px;">${customerName}</div>
-            <div style="font-size: 9px; color: #64748b;">${customerPhone}</div>
-          </td>
-          <td style="padding: 6px 7px; text-align: right; font-weight: 600; color: #0f172a;">৳ ${formatMoney(tx.amount || 0)}</td>
-          <td style="padding: 6px 7px; text-align: right; font-weight: 600; color: #059669;">৳ ${formatMoney(tx.paid_amount || 0)}</td>
-          <td style="padding: 6px 7px; text-align: right; font-weight: 700; color: ${tx.due_amount > 0 ? "#b91c1c" : "#64748b"};">
-            ৳ ${formatMoney(tx.due_amount || 0)}
-          </td>
-          <td style="padding: 6px 7px; text-align: center; font-size: 9.5px;">${statusBadge}</td>
-        </tr>
-      `;
-    });
-  }
+  // rowsHtml removed as the table was requested to be removed.
 
   return `
 <!DOCTYPE html>
@@ -1575,32 +1537,7 @@ export function generateSalesReportHTML(options: {
     </div>
   </div>
 
-  <!-- Detailed Transactions Table -->
-  <table class="sales-table">
-    <thead>
-      <tr>
-        <th style="width: 28px; text-align: center;">ক্র.</th>
-        <th style="width: 70px;">তারিখ</th>
-        <th>গ্রাহকের নাম ও যোগাযোগ</th>
-        <th style="width: 80px; text-align: right;">মোট মূল্য</th>
-        <th style="width: 80px; text-align: right;">পরিশোধ</th>
-        <th style="width: 80px; text-align: right;">বকেয়া</th>
-        <th style="width: 65px; text-align: center;">স্ট্যাটাস</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rowsHtml}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3" style="text-align: right;">সর্বমোট সমষ্টি:</td>
-        <td style="text-align: right; color: #0f172a;">৳ ${formatMoney(metrics.totalSales)}</td>
-        <td style="text-align: right; color: #059669;">৳ ${formatMoney(metrics.totalCollected)}</td>
-        <td style="text-align: right; color: ${metrics.totalDue > 0 ? "#b91c1c" : "#0f172a"};">৳ ${formatMoney(metrics.totalDue)}</td>
-        <td style="text-align: center; font-size: 9.5px; color: #065f46;">${metrics.totalTransactions} লেনদেন</td>
-      </tr>
-    </tfoot>
-  </table>
+
 
   <!-- Official Signatures -->
   <div class="signatures-grid">
