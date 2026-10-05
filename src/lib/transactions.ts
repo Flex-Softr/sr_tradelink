@@ -600,11 +600,9 @@ export async function getCentralSalesReportData(
     for (const r of allRecords) {
       const itemSale = Number(r.amount) || 0;
       const itemCollected = Number(r.paid_amount) || 0;
-      const itemDue = Number(r.due_amount) || 0;
 
       totalSales += itemSale;
       totalCollected += itemCollected;
-      totalDue += itemDue;
 
       // Group by Day
       const dObj = new Date(r.date);
@@ -622,7 +620,7 @@ export async function getCentralSalesReportData(
       };
       existingDay.sales += itemSale;
       existingDay.collected += itemCollected;
-      existingDay.due += itemDue;
+      existingDay.due = parseFloat((existingDay.sales - existingDay.collected).toFixed(2));
       existingDay.txCount++;
       dailyMap.set(dateKey, existingDay);
 
@@ -647,7 +645,7 @@ export async function getCentralSalesReportData(
 
     totalSales = parseFloat(totalSales.toFixed(2));
     totalCollected = parseFloat(totalCollected.toFixed(2));
-    totalDue = parseFloat(totalDue.toFixed(2));
+    totalDue = parseFloat((totalSales - totalCollected).toFixed(2));
     const collectionRate =
       totalSales > 0 ? parseFloat(((totalCollected / totalSales) * 100).toFixed(1)) : 0;
     const avgSaleAmount =

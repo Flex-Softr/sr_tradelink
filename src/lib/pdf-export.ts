@@ -22,7 +22,6 @@ export interface StatementLedgerData {
   entries: LedgerEntry[];
   totalDebit: number;
   totalCredit: number;
-  totalDue: number;
   closingBalance: number;
   transactionCount: number;
   startDate?: string;
@@ -127,12 +126,6 @@ export function calculateStatementLedger(
     };
   });
 
-  const totalDue = parseFloat(
-    entries
-      .reduce((acc, e) => acc + (Number(e.due_amount) || Math.max(0, e.debit - e.credit)), 0)
-      .toFixed(2)
-  );
-
   const closingBalance = Math.max(
     0,
     parseFloat((openingBalance + totalDebit - totalCredit).toFixed(2))
@@ -143,7 +136,6 @@ export function calculateStatementLedger(
     entries,
     totalDebit: parseFloat(totalDebit.toFixed(2)),
     totalCredit: parseFloat(totalCredit.toFixed(2)),
-    totalDue,
     closingBalance,
     transactionCount: entries.length,
     startDate,
@@ -621,7 +613,7 @@ export function generateBankStatementHTML(options: {
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="text-align: right; font-weight: 700; color: #065f46;">
+          <td colspan="4" style="text-align: right; font-weight: 700; color: #065f46;">
             সর্বমোট হিসাব (PERIOD TOTALS):
           </td>
           <td style="text-align: right; color: #1d4ed8; font-weight: 800;">
@@ -629,9 +621,6 @@ export function generateBankStatementHTML(options: {
           </td>
           <td style="text-align: right; color: #047857; font-weight: 800;">
             ৳ ${formatMoney(ledger.totalCredit)}
-          </td>
-          <td style="text-align: right; color: #b91c1c; font-weight: 800;">
-            ৳ ${formatMoney(ledger.totalDue)}
           </td>
           <td style="text-align: right; color: ${ledger.closingBalance > 0 ? "#b91c1c" : "#0f172a"}; font-weight: 800;">
             ৳ ${formatMoney(ledger.closingBalance)}
@@ -2265,7 +2254,7 @@ export function generatePartyStatementHTML(options: {
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="text-align: right; font-weight: 700; color: #065f46;">
+          <td colspan="4" style="text-align: right; font-weight: 700; color: #065f46;">
             সর্বমোট হিসাব (PERIOD TOTALS):
           </td>
           <td style="text-align: right; color: #1d4ed8; font-weight: 800;">
