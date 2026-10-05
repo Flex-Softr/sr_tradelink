@@ -128,8 +128,10 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 </html>
   `;
 
+  const fromAddress = process.env.SMTP_FROM || `"SR Tradelink" <${process.env.SMTP_USER}>`;
+
   await transporter.sendMail({
-    from: `"SR Tradelink" <${process.env.SMTP_USER}>`,
+    from: fromAddress,
     to: email,
     subject: "Reset your SR Tradelink password",
     html: htmlContent,
