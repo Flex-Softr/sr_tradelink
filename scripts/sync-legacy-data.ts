@@ -9,9 +9,14 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 const prisma = new PrismaClient();
 
 // Legacy MongoDB connection URI
-const LEGACY_MONGODB_URI =
-  process.env.LEGACY_MONGODB_URI ||
-  "mongodb+srv://srkhaddoDB:vzVY4ZkZjfe72YPn@cluster0.vefjkrb.mongodb.net/?appName=Cluster0";
+const LEGACY_MONGODB_URI = process.env.LEGACY_MONGODB_URI;
+
+if (!LEGACY_MONGODB_URI) {
+  console.error("❌ Error: LEGACY_MONGODB_URI is not defined in your .env file.");
+  console.error("Please add it to .env, for example:");
+  console.error('LEGACY_MONGODB_URI="mongodb+srv://srkhaddoDB:vzVY4ZkZjfe72YPn@cluster0.vefjkrb.mongodb.net/?appName=Cluster0"');
+  process.exit(1);
+}
 
 // Command-line flags
 const isDryRun = process.argv.includes("--dry-run");
