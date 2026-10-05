@@ -25,6 +25,14 @@ if [ -d ".next/static" ]; then
   cp -r .next/static/* .next/standalone/.next/static/ 2>/dev/null || true
 fi
 
+# Source .env if it exists so bash picks up PORT and other variables
+if [ -f ".env" ]; then
+  # Load non-commented lines from .env
+  set -a
+  source .env
+  set +a
+fi
+
 # Copy .env to standalone if present and missing
 if [ -f ".env" ] && [ ! -f ".next/standalone/.env" ]; then
   cp .env .next/standalone/.env
