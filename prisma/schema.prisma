@@ -123,3 +123,12 @@ model OtherCost {
   @@map("other_costs")
 }
 
+
+model PasswordResetToken {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@map("password_reset_tokens")
+}

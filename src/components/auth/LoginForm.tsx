@@ -153,9 +153,18 @@ export default function LoginForm() {
 
               {/* Password */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  পাসওয়ার্ড
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    পাসওয়ার্ড
+                  </Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-primary text-sm font-medium hover:underline"
+                    tabIndex={-1}
+                  >
+                    পাসওয়ার্ড ভুলে গেছেন?
+                  </Link>
+                </div>
                 <div className="relative">
                   <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <RiLockLine className="size-4" />

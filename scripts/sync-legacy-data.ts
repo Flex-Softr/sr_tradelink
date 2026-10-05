@@ -223,7 +223,7 @@ async function sync() {
 
   // 1. Connect to Legacy MongoDB
   console.log("\n📡 Connecting to legacy MongoDB cluster...");
-  const legacyClient = new MongoClient(LEGACY_MONGODB_URI);
+  const legacyClient = new MongoClient(LEGACY_MONGODB_URI as string);
   await legacyClient.connect();
   console.log("✅ Connected to legacy MongoDB!");
 
