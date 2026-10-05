@@ -102,7 +102,7 @@ function DashboardTabsContent({
 
   return (
     <div className="space-y-6">
-      {/* Top Level Metric Cards (3 in each line, compact & clean) */}
+      {/* Top Level Metric Cards (3 in a row on large screens to give enough space for titles) */}
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Products */}
         <Card
@@ -113,13 +113,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
                 <RiBox3Line className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   মোট পণ্য
                 </p>
                 <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl dark:text-white">
@@ -127,14 +127,6 @@ function DashboardTabsContent({
                 </h3>
               </div>
             </div>
-            <Link
-              href="/dashboard/products"
-              title="পণ্য পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
 
@@ -147,13 +139,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
                 <RiGroupLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   মোট গ্রাহক
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -166,14 +158,6 @@ function DashboardTabsContent({
                 </div>
               </div>
             </div>
-            <Link
-              href="/dashboard/customers"
-              title="গ্রাহক পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
 
@@ -186,13 +170,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
                 <RiBuilding2Line className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   পার্টি খাতা
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -205,14 +189,6 @@ function DashboardTabsContent({
                 </div>
               </div>
             </div>
-            <Link
-              href="/dashboard/parties"
-              title="পার্টি পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
 
@@ -225,13 +201,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                 <RiBarChartBoxLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   বিক্রয় রিপোর্ট
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -244,14 +220,6 @@ function DashboardTabsContent({
                 </div>
               </div>
             </div>
-            <Link
-              href="/dashboard/sales"
-              title="বিক্রয় রিপোর্ট পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
 
@@ -264,13 +232,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
                 <RiMoneyDollarCircleLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   অন্যান্য খরচ
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -283,14 +251,6 @@ function DashboardTabsContent({
                 </div>
               </div>
             </div>
-            <Link
-              href="/dashboard/other-costs"
-              title="অন্যান্য খরচ পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
 
@@ -303,13 +263,13 @@ function DashboardTabsContent({
               : "border-border/60 hover:border-slate-300 dark:hover:border-slate-700"
           }`}
         >
-          <CardContent className="flex items-center justify-between p-3 sm:p-3.5">
+          <CardContent className="flex items-center justify-between p-2 sm:p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
                 <RiShieldUserLine className="size-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-medium whitespace-nowrap text-slate-500 dark:text-slate-400">
                   ব্যবহারকারী
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -322,14 +282,6 @@ function DashboardTabsContent({
                 </div>
               </div>
             </div>
-            <Link
-              href="/dashboard/users"
-              title="ব্যবহারকারী পৃষ্ঠায় যান"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <RiArrowRightUpLine className="size-3.5" />
-            </Link>
           </CardContent>
         </Card>
       </div>
@@ -476,8 +428,8 @@ function DashboardTabsContent({
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
             <RiCheckDoubleLine className="size-4 text-green-600 dark:text-green-400" />
             <span>পৃষ্ঠা প্রতি ২০টি আইটেম (ডিফল্ট)</span>
           </div>
@@ -487,7 +439,7 @@ function DashboardTabsContent({
           {activeTab === "products" && (
             <Link
               href="/dashboard/products"
-              className="inline-flex items-center gap-1 font-medium text-green-700 hover:underline dark:text-green-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-green-700 hover:underline dark:text-green-400"
             >
               পূর্ণাঙ্গ পণ্য পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -496,7 +448,7 @@ function DashboardTabsContent({
           {activeTab === "customers" && (
             <Link
               href="/dashboard/customers"
-              className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-emerald-700 hover:underline dark:text-emerald-400"
             >
               পূর্ণাঙ্গ গ্রাহক পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -505,7 +457,7 @@ function DashboardTabsContent({
           {activeTab === "parties" && (
             <Link
               href="/dashboard/parties"
-              className="inline-flex items-center gap-1 font-medium text-purple-700 hover:underline dark:text-purple-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-purple-700 hover:underline dark:text-purple-400"
             >
               পূর্ণাঙ্গ পার্টি পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -514,7 +466,7 @@ function DashboardTabsContent({
           {activeTab === "sales" && (
             <Link
               href="/dashboard/sales"
-              className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline dark:text-blue-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400"
             >
               পূর্ণাঙ্গ বিক্রয় পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -523,7 +475,7 @@ function DashboardTabsContent({
           {activeTab === "other-costs" && (
             <Link
               href="/dashboard/other-costs"
-              className="inline-flex items-center gap-1 font-medium text-amber-700 hover:underline dark:text-amber-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-amber-700 hover:underline dark:text-amber-400"
             >
               পূর্ণাঙ্গ খরচ পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -532,7 +484,7 @@ function DashboardTabsContent({
           {activeTab === "users" && (
             <Link
               href="/dashboard/users"
-              className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline dark:text-indigo-400"
+              className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-indigo-700 hover:underline dark:text-indigo-400"
             >
               পূর্ণাঙ্গ ব্যবহারকারী পৃষ্ঠা <RiArrowRightUpLine className="size-3.5" />
             </Link>
@@ -587,7 +539,7 @@ export default function DashboardTabs(props: DashboardTabsProps) {
     <Suspense
       fallback={
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
