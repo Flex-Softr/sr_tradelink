@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import SalesReportView from "@/components/dashboard/SalesReportView";
 import { authOptions } from "@/lib/auth";
 import { getCustomers } from "@/lib/customers";
+import { type PeriodPreset, getPresetDates } from "@/lib/date-presets";
 import { getCentralSalesReportData } from "@/lib/transactions";
 
 export const metadata: Metadata = {
@@ -23,9 +24,14 @@ export default async function SalesReportPage() {
     redirect("/login?callbackUrl=/dashboard/sales");
   }
 
+  const initialPreset: PeriodPreset = "month";
+  const initialDates = getPresetDates(initialPreset);
+
   const [initialCustomers, initialReport] = await Promise.all([
     getCustomers(),
     getCentralSalesReportData({
+      startDate: initialDates.start,
+      endDate: initialDates.end,
       page: 1,
       limit: 20,
     }),
@@ -57,7 +63,13 @@ export default async function SalesReportPage() {
         </div>
 
         {/* Central Sales Report Interactive View */}
-        <SalesReportView initialCustomers={initialCustomers} initialData={initialReport} />
+        <SalesReportView
+          initialCustomers={initialCustomers}
+          initialData={initialReport}
+          initialStartDate={initialDates.start}
+          initialEndDate={initialDates.end}
+          initialPreset={initialPreset}
+        />
       </div>
     </div>
   );
