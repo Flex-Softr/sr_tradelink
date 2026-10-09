@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Customer } from "@/lib/customers";
+import { type PeriodPreset, getPresetDates } from "@/lib/date-presets";
 import { exportSalesReportPDF } from "@/lib/pdf-export";
 import { exportCentralSalesReportToCSV, exportCentralSalesReportToExcel } from "@/lib/sheet-export";
 import type { CentralSalesReportResult, GetCentralSalesReportOptions } from "@/lib/transactions";
@@ -42,9 +43,10 @@ import type { CentralSalesReportResult, GetCentralSalesReportOptions } from "@/l
 interface SalesReportViewProps {
   initialCustomers?: Customer[];
   initialData?: CentralSalesReportResult;
+  initialStartDate?: string;
+  initialEndDate?: string;
+  initialPreset?: PeriodPreset;
 }
-
-type PeriodPreset = "today" | "week" | "month" | "30days" | "year" | "all" | "custom";
 
 function formatMoney(amount: number | null | undefined): string {
   return Number(amount || 0).toLocaleString("en-IN", {
@@ -53,52 +55,18 @@ function formatMoney(amount: number | null | undefined): string {
   });
 }
 
-function formatDateStr(date: Date | string | null | undefined): string {
-  if (!date) return "-";
-  try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return "-";
-    return d.toISOString().split("T")[0];
-  } catch {
-    return "-";
-  }
-}
-
-function getPresetDates(preset: PeriodPreset): { start: string; end: string } {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${yyyy}-${mm}-${dd}`;
-
-  if (preset === "today") {
-    return { start: todayStr, end: todayStr };
-  } else if (preset === "week") {
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(now.setDate(diff));
-    return { start: formatDateStr(startOfWeek), end: todayStr };
-  } else if (preset === "month") {
-    return { start: `${yyyy}-${mm}-01`, end: todayStr };
-  } else if (preset === "30days") {
-    const past30 = new Date();
-    past30.setDate(past30.getDate() - 30);
-    return { start: formatDateStr(past30), end: todayStr };
-  } else if (preset === "year") {
-    return { start: `${yyyy}-01-01`, end: todayStr };
-  }
-  return { start: "", end: "" };
-}
-
 export default function SalesReportView({
   initialCustomers = [],
   initialData,
+  initialStartDate,
+  initialEndDate,
+  initialPreset = "month",
 }: SalesReportViewProps) {
-  // Filter States: Default to "month"
-  const defaultDates = getPresetDates("month");
-  const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [startDate, setStartDate] = useState<string>(defaultDates.start);
-  const [endDate, setEndDate] = useState<string>(defaultDates.end);
+  // Filter States: Default to initialPreset ("month")
+  const defaultDates = getPresetDates(initialPreset);
+  const [preset, setPreset] = useState<PeriodPreset>(initialPreset);
+  const [startDate, setStartDate] = useState<string>(initialStartDate ?? defaultDates.start);
+  const [endDate, setEndDate] = useState<string>(initialEndDate ?? defaultDates.end);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -131,8 +99,8 @@ export default function SalesReportView({
       void (async () => {
         try {
           const res = await fetchCentralSalesReportAction({
-            startDate: defaultDates.start,
-            endDate: defaultDates.end,
+            startDate: startDate || defaultDates.start,
+            endDate: endDate || defaultDates.end,
             page: 1,
             limit: pageSize,
           });
@@ -151,7 +119,7 @@ export default function SalesReportView({
         active = false;
       };
     }
-  }, [initialData]);
+  }, [initialData, startDate, endDate, defaultDates.start, defaultDates.end]);
 
   // Fetch Report Data
   const loadReportData = (page = 1, overrides?: Partial<GetCentralSalesReportOptions>) => {
