@@ -43,8 +43,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   return (
-    <div className="py-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="py-4 sm:py-8">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <ProductDetailsView product={product} />
       </div>
     </div>

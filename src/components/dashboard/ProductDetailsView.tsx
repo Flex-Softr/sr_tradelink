@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -49,6 +50,7 @@ import {
   type ProductWithTransactions,
   calculateProductReportData,
 } from "@/lib/products";
+import { sanitizeImageUrl } from "@/lib/utils";
 
 interface ProductDetailsViewProps {
   product: ProductWithTransactions;
@@ -337,9 +339,9 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
         </div>
       )}
 
-      {/* Navigation Breadcrumb */}
+      {/* Navigation Breadcrumb & Report Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <nav className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
           <Link
             href="/dashboard/products"
             className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
@@ -348,26 +350,33 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
             পণ্য ব্যবস্থাপনা
           </Link>
           <span>/</span>
-          <span className="font-semibold text-slate-900 dark:text-white">{product.name}</span>
+          <span className="max-w-[200px] truncate font-semibold text-slate-900 sm:max-w-none dark:text-white">
+            {product.name}
+          </span>
         </nav>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Input
-              type="date"
-              value={reportStartDate}
-              onChange={(e) => setReportStartDate(e.target.value)}
-              className="h-9 w-32 text-xs font-semibold"
-              title="রিপোর্ট শুরুর তারিখ"
-            />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Date range for report */}
+          <div className="flex w-full items-center gap-1.5 sm:w-auto">
+            <div className="relative flex-1 sm:w-32">
+              <Input
+                type="date"
+                value={reportStartDate}
+                onChange={(e) => setReportStartDate(e.target.value)}
+                className="h-9 w-full text-xs font-semibold"
+                title="রিপোর্ট শুরুর তারিখ"
+              />
+            </div>
             <span className="text-xs text-slate-400">-</span>
-            <Input
-              type="date"
-              value={reportEndDate}
-              onChange={(e) => setReportEndDate(e.target.value)}
-              className="h-9 w-32 text-xs font-semibold"
-              title="রিপোর্ট শেষ তারিখ"
-            />
+            <div className="relative flex-1 sm:w-32">
+              <Input
+                type="date"
+                value={reportEndDate}
+                onChange={(e) => setReportEndDate(e.target.value)}
+                className="h-9 w-full text-xs font-semibold"
+                title="রিপোর্ট শেষ তারিখ"
+              />
+            </div>
             {(reportStartDate || reportEndDate) && (
               <Button
                 variant="ghost"
@@ -384,41 +393,61 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
             )}
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadPDF}
-            className="gap-1.5 text-xs text-blue-700 hover:bg-blue-50 dark:text-blue-400"
-          >
-            <RiFilePdf2Line className="size-4" />
-            <span>পিডিএফ রিপোর্ট</span>
-          </Button>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPDF}
+              className="h-9 flex-1 justify-center gap-1.5 text-xs text-blue-700 hover:bg-blue-50 sm:flex-none dark:text-blue-400"
+            >
+              <RiFilePdf2Line className="size-4" />
+              <span>পিডিএফ রিপোর্ট</span>
+            </Button>
 
-          <Button
-            onClick={openAddDialog}
-            size="sm"
-            className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
-          >
-            <RiAddLine className="size-4" />
-            <span>নতুন লেনদেন</span>
-          </Button>
+            <Button
+              onClick={openAddDialog}
+              size="sm"
+              className="h-9 flex-1 justify-center gap-1.5 bg-green-600 text-white hover:bg-green-700 sm:flex-none"
+            >
+              <RiAddLine className="size-4" />
+              <span>নতুন লেনদেন</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Product Hero Header */}
       <Card className="border-border/60 overflow-hidden bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md dark:from-emerald-950 dark:to-green-900">
-        <CardContent className="p-6 sm:p-8">
+        <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                {product.name}
-              </h1>
-              <p className="mt-1 text-sm opacity-90">
-                {product.subtitle || "পণ্য ক্রয়, বিক্রয় ও স্টোক হিসাব বিবরণী"}
-              </p>
+            <div className="flex items-center gap-3 sm:gap-4">
+              {sanitizeImageUrl(product.image) && (
+                <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-white/30 bg-white/10 shadow-md sm:size-20">
+                  <Image
+                    src={sanitizeImageUrl(product.image)!}
+                    alt={product.name}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl lg:text-3xl">
+                  {product.name}
+                </h1>
+                <p className="mt-1 line-clamp-2 text-xs opacity-90 sm:text-sm">
+                  {product.subtitle || "পণ্য ক্রয়, বিক্রয় ও স্টোক হিসাব বিবরণী"}
+                </p>
+                {product.price !== null && product.price !== undefined && (
+                  <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-white/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-xs">
+                    মূল্য: ৳ {product.price}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md">
+            <div className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-md sm:rounded-2xl sm:p-4">
               <div className="text-xs font-medium text-emerald-100">
                 রিপোর্ট:{" "}
                 {reportStartDate || reportEndDate
@@ -426,10 +455,10 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   : "সম্পূর্ণ সময়"}{" "}
                 (মুনাফা/ক্ষতি)
               </div>
-              <div className="mt-1 text-2xl font-bold tracking-tight">
+              <div className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
                 ৳ {formatMoney(monthlyReport.profit)}
               </div>
-              <div className="mt-1 text-[11px] opacity-80">
+              <div className="mt-0.5 text-[11px] opacity-80 sm:mt-1">
                 গড় ক্রয় দর: ৳ {monthlyReport.buyRate}/kg
               </div>
             </div>
@@ -438,15 +467,15 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
       </Card>
 
       {/* Summary Stat Cards Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {/* Total Buy Weight */}
         <Card className="border-border/60">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <RiScales3Line className="size-4 text-blue-600" />
-              <span>সর্বমোট ক্রয় ওজন</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 sm:gap-2 sm:text-xs">
+              <RiScales3Line className="size-3.5 shrink-0 text-blue-600 sm:size-4" />
+              <span className="truncate">সর্বমোট ক্রয় ওজন</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+            <div className="mt-1.5 truncate text-base font-bold text-slate-900 sm:mt-2 sm:text-lg lg:text-xl dark:text-white">
               {totalStats.totalBuyWeight} kg
             </div>
           </CardContent>
@@ -454,12 +483,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
         {/* Total Sale Weight */}
         <Card className="border-border/60">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <RiShoppingBag3Line className="size-4 text-emerald-600" />
-              <span>সর্বমোট বিক্রয় ওজন</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 sm:gap-2 sm:text-xs">
+              <RiShoppingBag3Line className="size-3.5 shrink-0 text-emerald-600 sm:size-4" />
+              <span className="truncate">সর্বমোট বিক্রয় ওজন</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+            <div className="mt-1.5 truncate text-base font-bold text-slate-900 sm:mt-2 sm:text-lg lg:text-xl dark:text-white">
               {totalStats.totalSaleWeight} kg
             </div>
           </CardContent>
@@ -467,12 +496,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
         {/* Present Stock Weight */}
         <Card className="border-border/60 bg-emerald-50/50 dark:bg-emerald-950/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-              <RiStackLine className="size-4 text-emerald-600" />
-              <span>বর্তমান মজুদ (Stock)</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 sm:gap-2 sm:text-xs dark:text-emerald-300">
+              <RiStackLine className="size-3.5 shrink-0 text-emerald-600 sm:size-4" />
+              <span className="truncate">বর্তমান মজুদ</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-emerald-700 dark:text-emerald-400">
+            <div className="mt-1.5 truncate text-base font-bold text-emerald-700 sm:mt-2 sm:text-lg lg:text-xl dark:text-emerald-400">
               {totalStats.presentStockWeight} kg
             </div>
           </CardContent>
@@ -480,12 +509,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
         {/* Total Buy Price */}
         <Card className="border-border/60">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <RiCoinsLine className="size-4 text-blue-600" />
-              <span>সর্বমোট ক্রয় টাকা</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 sm:gap-2 sm:text-xs">
+              <RiCoinsLine className="size-3.5 shrink-0 text-blue-600 sm:size-4" />
+              <span className="truncate">সর্বমোট ক্রয় টাকা</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+            <div className="mt-1.5 truncate text-base font-bold text-slate-900 sm:mt-2 sm:text-lg lg:text-xl dark:text-white">
               ৳ {formatMoney(totalStats.totalBuyPrice)}
             </div>
           </CardContent>
@@ -493,12 +522,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
         {/* Total Sale Price */}
         <Card className="border-border/60">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <RiPriceTag3Line className="size-4 text-emerald-600" />
-              <span>সর্বমোট বিক্রয় টাকা</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 sm:gap-2 sm:text-xs">
+              <RiPriceTag3Line className="size-3.5 shrink-0 text-emerald-600 sm:size-4" />
+              <span className="truncate">সর্বমোট বিক্রয় টাকা</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+            <div className="mt-1.5 truncate text-base font-bold text-slate-900 sm:mt-2 sm:text-lg lg:text-xl dark:text-white">
               ৳ {formatMoney(totalStats.totalSalePrice)}
             </div>
           </CardContent>
@@ -508,13 +537,13 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
         <Card
           className={`border-border/60 ${monthlyReport.profit >= 0 ? "bg-green-50/50 dark:bg-green-950/20" : "bg-rose-50/50 dark:bg-rose-950/20"}`}
         >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-              <RiCalendarLine className="size-4 text-green-600" />
-              <span>নিট লভ্যাংশ (রিপোর্ট)</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 sm:gap-2 sm:text-xs dark:text-slate-300">
+              <RiCalendarLine className="size-3.5 shrink-0 text-green-600 sm:size-4" />
+              <span className="truncate">নিট লাভ (রিপোর্ট)</span>
             </div>
             <div
-              className={`mt-2 text-xl font-bold ${monthlyReport.profit >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+              className={`mt-1.5 truncate text-base font-bold sm:mt-2 sm:text-lg lg:text-xl ${monthlyReport.profit >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
               ৳ {formatMoney(monthlyReport.profit)}
             </div>
@@ -524,23 +553,23 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
 
       {/* Transactions Table Section */}
       <Card className="border-border/60 shadow-sm">
-        <CardHeader className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+        <CardHeader className="flex flex-col gap-3 border-b border-slate-100 p-4 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-6 sm:pb-4 dark:border-slate-800">
           <div>
-            <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
+            <CardTitle className="text-base font-bold text-slate-900 sm:text-lg dark:text-white">
               পণ্য লেনদেন ও স্টক খতিয়ান
             </CardTitle>
-            <CardDescription className="mt-0.5">
+            <CardDescription className="mt-0.5 text-xs sm:text-sm">
               প্রতিদিনের ক্রয় দর, ক্রয় ওজন, বিক্রি দর ও বিক্রি ওজনের বিবরণ
             </CardDescription>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-medium text-slate-500">তারিখ:</div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex w-full items-center gap-1.5 sm:w-auto">
+              <div className="shrink-0 text-xs font-medium text-slate-500">তারিখ:</div>
               <Input
                 type="date"
                 value={filterStartDate}
                 onChange={(e) => setFilterStartDate(e.target.value)}
-                className="h-8 w-32 text-xs"
+                className="h-8 flex-1 text-xs sm:w-32"
                 title="শুরুর তারিখ"
               />
               <span className="text-slate-400">-</span>
@@ -548,7 +577,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                 type="date"
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
-                className="h-8 w-32 text-xs"
+                className="h-8 flex-1 text-xs sm:w-32"
                 title="শেষ তারিখ"
               />
               {(filterStartDate || filterEndDate) && (
@@ -566,15 +595,15 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                 </Button>
               )}
             </div>
-            <Badge variant="secondary" className="font-semibold">
+            <Badge variant="secondary" className="self-start text-xs font-semibold sm:self-auto">
               মোট {filteredAndSortedTransactions.length} টি লেনদেন
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-6">
+        <CardContent className="p-3 pt-4 sm:p-6 sm:pt-6">
           {filteredAndSortedTransactions.length === 0 ? (
-            <div className="py-12 text-center">
+            <div className="px-4 py-10 text-center sm:py-12">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
                 <RiShoppingBag3Line className="size-6" />
               </div>
@@ -583,7 +612,7 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   ? "কোনো লেনদেনের রেকর্ড নেই"
                   : "কোনো ফলাফল পাওয়া যায়নি"}
               </h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500 sm:text-sm">
                 {transactions.length === 0
                   ? "এই পণ্যের জন্য এখনো কোনো ক্রয় বা বিক্রয়ের লেনদেন এন্ট্রি করা হয়নি।"
                   : "আপনার নির্বাচিত তারিখের মধ্যে কোনো লেনদেন পাওয়া যায়নি।"}
@@ -596,81 +625,172 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
-              <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-                  <tr className="whitespace-nowrap">
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      তারিখ
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      মাল ক্রয় ওজন
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      মাল ক্রয় দর (৳)
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      আজকের বিক্রয় ওজন
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      আজকের বিক্রয় দর (৳)
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
-                      অ্যাকশন
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
-                  {paginatedTransactions.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
-                    >
-                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                        {formatDateStr(t.date)}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-400">
-                        {t.kroyweight} kg
-                      </td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
-                        ৳ {formatMoney(t.kroyprice)}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
-                        {t.dailysaleweight} kg
-                      </td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
-                        ৳ {formatMoney(t.dailysaleprice)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEditDialog(t)}
-                            title="সম্পাদনা করুন"
-                            className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
-                          >
-                            <RiEditLine className="size-4" />
-                            <span className="sr-only">সম্পাদনা</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openDeleteDialog(t)}
-                            title="মুছে ফেলুন"
-                            className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                          >
-                            <RiDeleteBinLine className="size-4" />
-                            <span className="sr-only">মুছুন</span>
-                          </Button>
-                        </div>
-                      </td>
+            <div className="space-y-4">
+              {/* Desktop Table View */}
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200/80 md:block dark:border-slate-800">
+                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
+                    <tr className="whitespace-nowrap">
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        তারিখ
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        মাল ক্রয় ওজন
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        মাল ক্রয় দর (৳)
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        আজকের বিক্রয় ওজন
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        আজকের বিক্রয় দর (৳)
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
+                        অ্যাকশন
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
+                    {paginatedTransactions.map((t) => (
+                      <tr
+                        key={t.id}
+                        className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                          {formatDateStr(t.date)}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-400">
+                          {t.kroyweight} kg
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                          ৳ {formatMoney(t.kroyprice)}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
+                          {t.dailysaleweight} kg
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                          ৳ {formatMoney(t.dailysaleprice)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEditDialog(t)}
+                              title="সম্পাদনা করুন"
+                              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                            >
+                              <RiEditLine className="size-4" />
+                              <span className="sr-only">সম্পাদনা</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openDeleteDialog(t)}
+                              title="মুছে ফেলুন"
+                              className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                            >
+                              <RiDeleteBinLine className="size-4" />
+                              <span className="sr-only">মুছুন</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-              <div className="bg-slate-50/50 px-4 dark:bg-slate-900/50">
+              {/* Mobile Card List View */}
+              <div className="grid grid-cols-1 gap-3 md:hidden">
+                {paginatedTransactions.map((t) => (
+                  <div
+                    key={t.id}
+                    className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    {/* Header: Date + Action Buttons */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-white">
+                        <RiCalendarLine className="size-3.5 text-slate-400" />
+                        <span>{formatDateStr(t.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openEditDialog(t)}
+                          title="সম্পাদনা"
+                          className="size-7 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                        >
+                          <RiEditLine className="size-3.5" />
+                          <span className="sr-only">সম্পাদনা</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openDeleteDialog(t)}
+                          title="মুছুন"
+                          className="size-7 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                        >
+                          <RiDeleteBinLine className="size-3.5" />
+                          <span className="sr-only">মুছুন</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Side-by-side Buy & Sale Columns */}
+                    <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs">
+                      {/* Buy details */}
+                      <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-2.5 dark:border-blue-900/30 dark:bg-blue-950/30">
+                        <div className="flex items-center gap-1 font-semibold text-blue-800 dark:text-blue-300">
+                          <RiScales3Line className="size-3 shrink-0" />
+                          <span>মাল ক্রয়</span>
+                        </div>
+                        <div className="mt-1.5 space-y-0.5">
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>ওজন:</span>
+                            <span className="font-bold text-blue-900 dark:text-blue-200">
+                              {t.kroyweight} kg
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>দর:</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              ৳ {formatMoney(t.kroyprice)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sale details */}
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5 dark:border-emerald-900/30 dark:bg-emerald-950/30">
+                        <div className="flex items-center gap-1 font-semibold text-emerald-800 dark:text-emerald-300">
+                          <RiShoppingBag3Line className="size-3 shrink-0" />
+                          <span>আজকের বিক্রয়</span>
+                        </div>
+                        <div className="mt-1.5 space-y-0.5">
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>ওজন:</span>
+                            <span className="font-bold text-emerald-900 dark:text-emerald-200">
+                              {t.dailysaleweight} kg
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>দর:</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              ৳ {formatMoney(t.dailysaleprice)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="rounded-lg bg-slate-50/50 px-3 sm:px-4 dark:bg-slate-900/50">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -690,17 +810,17 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
       {/* ADD TRANSACTION DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-md sm:p-6">
           <DialogHeader>
-            <DialogTitle>নতুন লেনদেন যোগ করুন</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">নতুন লেনদেন যোগ করুন</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               {product.name} এর জন্য দৈনিক ক্রয় ও বিক্রয়ের তথ্য প্রদান করুন।
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAddSubmit} className="space-y-4 pt-2">
+          <form onSubmit={handleAddSubmit} className="space-y-3.5 pt-2 sm:space-y-4">
             <div>
-              <Label htmlFor="tx-date" className="text-sm font-medium">
+              <Label htmlFor="tx-date" className="text-xs font-medium sm:text-sm">
                 তারিখ <span className="text-rose-500">*</span>
               </Label>
               <Input
@@ -708,16 +828,16 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 aria-invalid={!!formErrors.date}
               />
               {formErrors.date && <p className="mt-1 text-xs text-rose-500">{formErrors.date}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div>
-                <Label htmlFor="tx-kroyweight" className="text-sm font-medium">
-                  মাল ক্রয় ওজন (kg)
+                <Label htmlFor="tx-kroyweight" className="text-xs font-medium sm:text-sm">
+                  ক্রয় ওজন (kg)
                 </Label>
                 <Input
                   id="tx-kroyweight"
@@ -726,12 +846,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={kroyweight}
                   onChange={(e) => setKroyweight(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="tx-kroyprice" className="text-sm font-medium">
-                  মাল ক্রয় দর (৳)
+                <Label htmlFor="tx-kroyprice" className="text-xs font-medium sm:text-sm">
+                  ক্রয় দর (৳)
                 </Label>
                 <Input
                   id="tx-kroyprice"
@@ -740,15 +860,15 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={kroyprice}
                   onChange={(e) => setKroyprice(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div>
-                <Label htmlFor="tx-saleweight" className="text-sm font-medium">
-                  আজকের বিক্রয় ওজন (kg)
+                <Label htmlFor="tx-saleweight" className="text-xs font-medium sm:text-sm">
+                  বিক্রয় ওজন (kg)
                 </Label>
                 <Input
                   id="tx-saleweight"
@@ -757,12 +877,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={dailysaleweight}
                   onChange={(e) => setDailysaleweight(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="tx-saleprice" className="text-sm font-medium">
-                  আজকের বিক্রয় দর (৳)
+                <Label htmlFor="tx-saleprice" className="text-xs font-medium sm:text-sm">
+                  বিক্রয় দর (৳)
                 </Label>
                 <Input
                   id="tx-saleprice"
@@ -771,17 +891,21 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={dailysaleprice}
                   onChange={(e) => setDailysaleprice(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
-              <DialogClose render={<Button type="button" variant="outline" />}>বাতিল</DialogClose>
+            <DialogFooter className="flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end sm:pt-4 dark:border-slate-800">
+              <DialogClose
+                render={<Button type="button" variant="outline" className="w-full sm:w-auto" />}
+              >
+                বাতিল
+              </DialogClose>
               <Button
                 type="submit"
                 disabled={isPending}
-                className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
+                className="w-full justify-center gap-1.5 bg-green-600 text-white hover:bg-green-700 sm:w-auto"
               >
                 {isPending && <RiLoader4Line className="size-4 animate-spin" />}
                 <span>সংরক্ষণ করুন</span>
@@ -795,15 +919,17 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
       {/* EDIT TRANSACTION DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-md sm:p-6">
           <DialogHeader>
-            <DialogTitle>লেনদেন আপডেট করুন</DialogTitle>
-            <DialogDescription>{product.name} এর লেনদেন তথ্য সংশোধন করুন।</DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">লেনদেন আপডেট করুন</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              {product.name} এর লেনদেন তথ্য সংশোধন করুন।
+            </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
+          <form onSubmit={handleEditSubmit} className="space-y-3.5 pt-2 sm:space-y-4">
             <div>
-              <Label htmlFor="edit-tx-date" className="text-sm font-medium">
+              <Label htmlFor="edit-tx-date" className="text-xs font-medium sm:text-sm">
                 তারিখ <span className="text-rose-500">*</span>
               </Label>
               <Input
@@ -811,14 +937,14 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div>
-                <Label htmlFor="edit-tx-kroyweight" className="text-sm font-medium">
-                  মাল ক্রয় ওজন (kg)
+                <Label htmlFor="edit-tx-kroyweight" className="text-xs font-medium sm:text-sm">
+                  ক্রয় ওজন (kg)
                 </Label>
                 <Input
                   id="edit-tx-kroyweight"
@@ -827,12 +953,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={kroyweight}
                   onChange={(e) => setKroyweight(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-tx-kroyprice" className="text-sm font-medium">
-                  মাল ক্রয় দর (৳)
+                <Label htmlFor="edit-tx-kroyprice" className="text-xs font-medium sm:text-sm">
+                  ক্রয় দর (৳)
                 </Label>
                 <Input
                   id="edit-tx-kroyprice"
@@ -841,15 +967,15 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={kroyprice}
                   onChange={(e) => setKroyprice(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div>
-                <Label htmlFor="edit-tx-saleweight" className="text-sm font-medium">
-                  আজকের বিক্রয় ওজন (kg)
+                <Label htmlFor="edit-tx-saleweight" className="text-xs font-medium sm:text-sm">
+                  বিক্রয় ওজন (kg)
                 </Label>
                 <Input
                   id="edit-tx-saleweight"
@@ -858,12 +984,12 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={dailysaleweight}
                   onChange={(e) => setDailysaleweight(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-tx-saleprice" className="text-sm font-medium">
-                  আজকের বিক্রয় দর (৳)
+                <Label htmlFor="edit-tx-saleprice" className="text-xs font-medium sm:text-sm">
+                  বিক্রয় দর (৳)
                 </Label>
                 <Input
                   id="edit-tx-saleprice"
@@ -872,17 +998,21 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
                   min="0"
                   value={dailysaleprice}
                   onChange={(e) => setDailysaleprice(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
-              <DialogClose render={<Button type="button" variant="outline" />}>বাতিল</DialogClose>
+            <DialogFooter className="flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end sm:pt-4 dark:border-slate-800">
+              <DialogClose
+                render={<Button type="button" variant="outline" className="w-full sm:w-auto" />}
+              >
+                বাতিল
+              </DialogClose>
               <Button
                 type="submit"
                 disabled={isPending}
-                className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                className="w-full justify-center gap-1.5 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
               >
                 {isPending && <RiLoader4Line className="size-4 animate-spin" />}
                 <span>আপডেট করুন</span>
@@ -896,22 +1026,28 @@ export default function ProductDetailsView({ product }: ProductDetailsViewProps)
       {/* DELETE TRANSACTION DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-md sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-rose-600">লেনদেন মুছে ফেলুন</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base text-rose-600 sm:text-lg">
+              লেনদেন মুছে ফেলুন
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               আপনি কি নিশ্চিত যে এই লেনদেন রেকর্ডটি মুছে ফেলতে চান? এটি স্থায়ীভাবে মুছে যাবে।
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="pt-4">
-            <DialogClose render={<Button type="button" variant="outline" />}>বাতিল</DialogClose>
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end sm:pt-4 dark:border-slate-800">
+            <DialogClose
+              render={<Button type="button" variant="outline" className="w-full sm:w-auto" />}
+            >
+              বাতিল
+            </DialogClose>
             <Button
               type="button"
               variant="destructive"
               onClick={handleDeleteSubmit}
               disabled={isPending}
-              className="gap-1.5"
+              className="w-full justify-center gap-1.5 sm:w-auto"
             >
               {isPending && <RiLoader4Line className="size-4 animate-spin" />}
               <span>হ্যাঁ, মুছে দিন</span>
