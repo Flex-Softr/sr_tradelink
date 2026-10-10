@@ -24,11 +24,11 @@ export default async function ProductsPage() {
   const initialProducts = await getProducts();
 
   return (
-    <div className="py-8">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <div className="py-4 sm:py-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-3 sm:space-y-6 sm:px-6 lg:px-8">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between">
-          <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav className="flex items-center gap-2 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
@@ -40,7 +40,7 @@ export default async function ProductsPage() {
             <span className="font-semibold text-slate-900 dark:text-white">পণ্য ব্যবস্থাপনা</span>
           </nav>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-600/20 dark:bg-green-950/50 dark:text-green-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-600/20 dark:bg-green-950/50 dark:text-green-300">
             <RiProductHuntLine className="size-3.5" />
             পণ্য ও মজুদ
           </span>

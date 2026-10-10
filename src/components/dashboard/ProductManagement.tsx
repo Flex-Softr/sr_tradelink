@@ -292,10 +292,10 @@ export default function ProductManagement({ initialProducts }: ProductManagement
 
       {/* Main Card */}
       <Card className="border-border/60 shadow-sm">
-        <CardHeader className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+        <CardHeader className="flex flex-col gap-4 border-b border-slate-100 p-4 pb-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 sm:pb-5 dark:border-slate-800">
           <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <CardTitle className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
                 পণ্যের তালিকা ও ব্যবস্থাপনা
               </CardTitle>
               <Badge
@@ -305,18 +305,18 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 মোট {productsList.length} টি পণ্য
               </Badge>
             </div>
-            <CardDescription className="mt-1">
+            <CardDescription className="mt-1 text-xs sm:text-sm">
               মজুদ (Stock), মূল্য (Price), একক (Unit) ও বিবরণসহ ডায়নামিক পণ্যসমূহ নিয়ন্ত্রণ করুন
             </CardDescription>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="gap-1.5"
+              className="h-9 gap-1.5"
               title="তালিকা রিফ্রেশ করুন"
             >
               <RiRefreshLine className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -326,7 +326,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
             <Link
               href="/#products"
               target="_blank"
-              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-green-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-green-400"
+              className="inline-flex h-9 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-green-700 sm:text-sm dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-green-400"
             >
               <span>লাইভ সাইট</span>
               <RiArrowRightUpLine className="size-4" />
@@ -334,30 +334,30 @@ export default function ProductManagement({ initialProducts }: ProductManagement
 
             <Button
               onClick={openAddDialog}
-              className="gap-1.5 bg-green-600 text-white shadow-sm hover:bg-green-700"
+              className="h-9 flex-1 justify-center gap-1.5 bg-green-600 text-xs text-white shadow-sm hover:bg-green-700 sm:h-9.5 sm:flex-initial sm:text-sm"
             >
-              <RiAddLine className="size-4.5" />
+              <RiAddLine className="size-4 sm:size-4.5" />
               <span>নতুন পণ্য যোগ করুন</span>
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-6">
+        <CardContent className="p-3 pt-4 sm:p-6 sm:pt-6">
           {/* Search and Filters */}
-          <div className="mb-6 flex flex-col gap-4">
+          <div className="mb-4 flex flex-col gap-3 sm:mb-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               {/* Search Box */}
-              <div className="relative max-w-md flex-1">
+              <div className="relative w-full md:max-w-md">
                 <RiSearchLine className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   type="text"
-                  placeholder="পণ্য খুঁজুন (নাম, বিবরণ, স্টক, মূল্য)..."
+                  placeholder="পণ্য খুঁজুন (নাম, বিবরণ, মূল্য)..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="h-10 bg-slate-50/50 pl-9 dark:bg-slate-900/50"
+                  className="h-10 bg-slate-50/50 pr-9 pl-9 text-xs sm:text-sm dark:bg-slate-900/50"
                 />
                 {searchTerm && (
                   <button
@@ -372,19 +372,24 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                   </button>
                 )}
               </div>
+
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                প্রদর্শিত: <strong>{paginatedProducts.length}</strong> /{" "}
+                <strong>{filteredProducts.length}</strong> টি পণ্য
+              </div>
             </div>
           </div>
 
-          {/* Table */}
+          {/* Table & Mobile Cards */}
           {filteredProducts.length === 0 ? (
-            <div className="py-14 text-center">
+            <div className="px-4 py-12 text-center sm:py-14">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                 <RiSearchLine className="size-6" />
               </div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">
                 কোনো পণ্য খুঁজে পাওয়া যায়নি
               </h3>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500 sm:text-sm dark:text-slate-400">
                 {searchTerm
                   ? "আপনার অনুসন্ধানের সাথে মেলে এমন কোনো পণ্য নেই। ফিল্টার মুছে আবার চেষ্টা করুন।"
                   : "এখনো কোনো পণ্য ডাটাবেজে যুক্ত করা হয়নি।"}
@@ -403,128 +408,232 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-800">
-              <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-                  <tr className="whitespace-nowrap">
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      পণ্য ও ছবি
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                      মূল্য
-                    </th>
-                    <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
-                      অ্যাকশন
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
-                  {paginatedProducts.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
-                    >
-                      {/* Name & Image */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-xs dark:border-slate-800 dark:bg-slate-800">
-                            {sanitizeImageUrl(item.image) ? (
-                              <Image
-                                src={sanitizeImageUrl(item.image)!}
-                                alt={item.name}
-                                fill
-                                sizes="48px"
-                                className="object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLElement).style.display = "none";
-                                }}
-                              />
-                            ) : (
-                              <div className="flex size-full items-center justify-center text-slate-400">
-                                <RiImageLine className="size-5" />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-900 dark:text-white">
-                              {item.name}
-                            </div>
-                            {item.subtitle && (
-                              <div className="line-clamp-1 text-xs text-slate-500">
-                                {item.subtitle}
-                              </div>
-                            )}
-                            <div className="mt-0.5 font-mono text-[11px] text-slate-400">
-                              ID: {item.id.slice(-6)}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Price & Unit */}
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-slate-900 dark:text-white">
-                          ৳ {item.price !== null && item.price !== undefined ? item.price : 0}
-                        </div>
-                      </td>
-
-                      {/* Action buttons */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Details */}
-                          <Link
-                            href={`/dashboard/products/${item.id}`}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-                            title="বিবরণ ও স্টক খতিয়ান"
-                          >
-                            <RiEyeLine className="size-4" />
-                            <span className="sr-only">বিবরণ</span>
-                          </Link>
-
-                          {/* Preview */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openPreviewDialog(item)}
-                            title="দ্রুত প্রিভিউ"
-                            className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-                          >
-                            <RiFileTextLine className="size-4" />
-                            <span className="sr-only">প্রিভিউ</span>
-                          </Button>
-
-                          {/* Edit */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEditDialog(item)}
-                            title="সম্পাদনা করুন"
-                            className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
-                          >
-                            <RiEditLine className="size-4" />
-                            <span className="sr-only">সম্পাদনা</span>
-                          </Button>
-
-                          {/* Delete */}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openDeleteDialog(item)}
-                            title="মুছে ফেলুন"
-                            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                          >
-                            <RiDeleteBinLine className="size-4" />
-                            <span className="sr-only">মুছুন</span>
-                          </Button>
-                        </div>
-                      </td>
+            <div className="space-y-4">
+              {/* Desktop Table View */}
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200/80 md:block dark:border-slate-800">
+                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wider text-slate-700 uppercase dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
+                    <tr className="whitespace-nowrap">
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        পণ্য ও ছবি
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
+                        মূল্য
+                      </th>
+                      <th scope="col" className="px-4 py-3.5 text-right whitespace-nowrap">
+                        অ্যাকশন
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/40">
+                    {paginatedProducts.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="group transition hover:bg-slate-50/75 dark:hover:bg-slate-900/60"
+                      >
+                        {/* Name & Image */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-xs dark:border-slate-800 dark:bg-slate-800">
+                              {sanitizeImageUrl(item.image) ? (
+                                <Image
+                                  src={sanitizeImageUrl(item.image)!}
+                                  alt={item.name}
+                                  fill
+                                  sizes="48px"
+                                  className="object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex size-full items-center justify-center text-slate-400">
+                                  <RiImageLine className="size-5" />
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 dark:text-white">
+                                {item.name}
+                              </div>
+                              {item.subtitle && (
+                                <div className="line-clamp-1 text-xs text-slate-500">
+                                  {item.subtitle}
+                                </div>
+                              )}
+                              <div className="mt-0.5 font-mono text-[11px] text-slate-400">
+                                ID: {item.id.slice(-6)}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Price & Unit */}
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-900 dark:text-white">
+                            ৳ {item.price !== null && item.price !== undefined ? item.price : 0}
+                          </div>
+                        </td>
+
+                        {/* Action buttons */}
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Details */}
+                            <Link
+                              href={`/dashboard/products/${item.id}`}
+                              className="inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                              title="বিবরণ ও স্টক খতিয়ান"
+                            >
+                              <RiEyeLine className="size-4" />
+                              <span className="sr-only">বিবরণ</span>
+                            </Link>
+
+                            {/* Preview */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openPreviewDialog(item)}
+                              title="দ্রুত প্রিভিউ"
+                              className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            >
+                              <RiFileTextLine className="size-4" />
+                              <span className="sr-only">প্রিভিউ</span>
+                            </Button>
+
+                            {/* Edit */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEditDialog(item)}
+                              title="সম্পাদনা করুন"
+                              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                            >
+                              <RiEditLine className="size-4" />
+                              <span className="sr-only">সম্পাদনা</span>
+                            </Button>
+
+                            {/* Delete */}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openDeleteDialog(item)}
+                              title="মুছে ফেলুন"
+                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                            >
+                              <RiDeleteBinLine className="size-4" />
+                              <span className="sr-only">মুছুন</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
+                {paginatedProducts.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <div>
+                      <div className="flex items-start gap-3">
+                        <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-2xs dark:border-slate-800 dark:bg-slate-800">
+                          {sanitizeImageUrl(item.image) ? (
+                            <Image
+                              src={sanitizeImageUrl(item.image)!}
+                              alt={item.name}
+                              fill
+                              sizes="56px"
+                              className="object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-slate-400">
+                              <RiImageLine className="size-6" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <Link
+                              href={`/dashboard/products/${item.id}`}
+                              className="line-clamp-1 text-sm font-bold text-slate-900 hover:text-green-600 hover:underline dark:text-white dark:hover:text-green-400"
+                            >
+                              {item.name}
+                            </Link>
+                            <span className="shrink-0 rounded-md bg-green-50 px-2 py-0.5 text-xs font-bold text-green-700 ring-1 ring-green-600/20 dark:bg-green-950/60 dark:text-green-300">
+                              ৳ {item.price !== null && item.price !== undefined ? item.price : 0}
+                            </span>
+                          </div>
+                          {item.subtitle && (
+                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                              {item.subtitle}
+                            </p>
+                          )}
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="font-mono text-[10px] text-slate-400">
+                              ID: {item.id.slice(-6)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions Footer */}
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                      <Link
+                        href={`/dashboard/products/${item.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
+                      >
+                        <RiEyeLine className="size-3.5" />
+                        <span>বিবরণ ও খতিয়ান</span>
+                      </Link>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openPreviewDialog(item)}
+                          title="দ্রুত প্রিভিউ"
+                          className="size-7 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                        >
+                          <RiFileTextLine className="size-3.5" />
+                          <span className="sr-only">প্রিভিউ</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openEditDialog(item)}
+                          title="সম্পাদনা"
+                          className="size-7 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                        >
+                          <RiEditLine className="size-3.5" />
+                          <span className="sr-only">সম্পাদনা</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openDeleteDialog(item)}
+                          title="মুছুন"
+                          className="size-7 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                        >
+                          <RiDeleteBinLine className="size-3.5" />
+                          <span className="sr-only">মুছুন</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               {/* Pagination controls (20 items per page default) */}
-              <div className="bg-slate-50/50 px-4 dark:bg-slate-900/50">
+              <div className="rounded-lg bg-slate-50/50 px-3 sm:px-4 dark:bg-slate-900/50">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -544,18 +653,18 @@ export default function ProductManagement({ initialProducts }: ProductManagement
       {/* ADD PRODUCT DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-lg sm:p-6">
           <DialogHeader>
-            <DialogTitle>নতুন পণ্য যোগ করুন</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">নতুন পণ্য যোগ করুন</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               পণ্য, মজুদ (Stock), মূল্য ও এককের বিস্তারিত তথ্য প্রদান করুন।
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAddSubmit} className="space-y-4 pt-2">
+          <form onSubmit={handleAddSubmit} className="space-y-3.5 pt-2 sm:space-y-4">
             {/* Name */}
             <div>
-              <Label htmlFor="add-name" className="text-sm font-medium">
+              <Label htmlFor="add-name" className="text-xs font-medium sm:text-sm">
                 পণ্যের নাম <span className="text-rose-500">*</span>
               </Label>
               <Input
@@ -563,7 +672,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="যেমন: সরিষা খৈল / Sorisa Khoil"
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 aria-invalid={!!formErrors.name}
               />
               {formErrors.name && <p className="mt-1 text-xs text-rose-500">{formErrors.name}</p>}
@@ -571,7 +680,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
 
             {/* Subtitle */}
             <div>
-              <Label htmlFor="add-subtitle" className="text-sm font-medium">
+              <Label htmlFor="add-subtitle" className="text-xs font-medium sm:text-sm">
                 সংক্ষিপ্ত বিবরণ (Subtitle)
               </Label>
               <Input
@@ -579,37 +688,32 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 value={formData.subtitle}
                 onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                 placeholder="যেমন: প্রিমিয়াম কোয়ালিটি এবং পুষ্টি উপাদান সমৃদ্ধ"
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
               />
             </div>
 
-            {/* Price & Unit & Stock Grid */}
-            <div className="grid grid-cols-1 gap-3">
-              {/* Price */}
-              <div>
-                <Label htmlFor="add-price" className="text-sm font-medium">
-                  মূল্য (৳ BDT)
-                </Label>
-                <Input
-                  id="add-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0.00"
-                  className="mt-1"
-                  aria-invalid={!!formErrors.price}
-                />
-                {formErrors.price && (
-                  <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>
-                )}
-              </div>
+            {/* Price */}
+            <div>
+              <Label htmlFor="add-price" className="text-xs font-medium sm:text-sm">
+                মূল্য (৳ BDT)
+              </Label>
+              <Input
+                id="add-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="0.00"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
+                aria-invalid={!!formErrors.price}
+              />
+              {formErrors.price && <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <Label htmlFor="add-description" className="text-sm font-medium">
+              <Label htmlFor="add-description" className="text-xs font-medium sm:text-sm">
                 বিস্তারিত বিবরণ (Description)
               </Label>
               <Textarea
@@ -618,13 +722,13 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="পণ্যের গুণাগুণ, ব্যবহারবিধি, পুষ্টিগুণ ইত্যাদি..."
-                className="mt-1 min-h-[72px]"
+                className="mt-1 min-h-[72px] text-xs sm:text-sm"
               />
             </div>
 
             {/* Image URL with live preview */}
             <div>
-              <Label htmlFor="add-image" className="text-sm font-medium">
+              <Label htmlFor="add-image" className="text-xs font-medium sm:text-sm">
                 ছবির লিঙ্ক (Image URL)
               </Label>
               <Input
@@ -632,7 +736,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                 placeholder="https://i.ibb.co.com/example/image.jpg"
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 aria-invalid={!!formErrors.image}
               />
               {formErrors.image && <p className="mt-1 text-xs text-rose-500">{formErrors.image}</p>}
@@ -640,7 +744,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               {/* Live Preview */}
               {sanitizeImageUrl(formData.image) && (
                 <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700">
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white sm:size-16 dark:border-slate-700">
                     <Image
                       src={sanitizeImageUrl(formData.image)!}
                       alt="ছবি প্রিভিউ"
@@ -664,14 +768,16 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               )}
             </div>
 
-            <DialogFooter className="border-t border-slate-100 pt-4 dark:border-slate-800">
-              <DialogClose render={<Button variant="outline" type="button" />}>
+            <DialogFooter className="flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end sm:pt-4 dark:border-slate-800">
+              <DialogClose
+                render={<Button variant="outline" type="button" className="w-full sm:w-auto" />}
+              >
                 বাতিল করুন
               </DialogClose>
               <Button
                 type="submit"
                 disabled={isPending}
-                className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
+                className="w-full justify-center gap-1.5 bg-green-600 text-white hover:bg-green-700 sm:w-auto"
               >
                 {isPending && <RiLoader4Line className="size-4 animate-spin" />}
                 সংরক্ষণ করুন
@@ -685,25 +791,25 @@ export default function ProductManagement({ initialProducts }: ProductManagement
       {/* EDIT PRODUCT DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-lg sm:p-6">
           <DialogHeader>
-            <DialogTitle>পণ্য সম্পাদনা করুন</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">পণ্য সম্পাদনা করুন</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               পণ্যের তথ্য, মজুদ (Stock), মূল্য বা একক পরিবর্তন করে সংরক্ষণ করুন।
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
+          <form onSubmit={handleEditSubmit} className="space-y-3.5 pt-2 sm:space-y-4">
             {/* Name */}
             <div>
-              <Label htmlFor="edit-name" className="text-sm font-medium">
+              <Label htmlFor="edit-name" className="text-xs font-medium sm:text-sm">
                 পণ্যের নাম <span className="text-rose-500">*</span>
               </Label>
               <Input
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 aria-invalid={!!formErrors.name}
               />
               {formErrors.name && <p className="mt-1 text-xs text-rose-500">{formErrors.name}</p>}
@@ -711,43 +817,38 @@ export default function ProductManagement({ initialProducts }: ProductManagement
 
             {/* Subtitle */}
             <div>
-              <Label htmlFor="edit-subtitle" className="text-sm font-medium">
+              <Label htmlFor="edit-subtitle" className="text-xs font-medium sm:text-sm">
                 সংক্ষিপ্ত বিবরণ (Subtitle)
               </Label>
               <Input
                 id="edit-subtitle"
                 value={formData.subtitle}
                 onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
               />
             </div>
 
-            {/* Price & Unit & Stock Grid */}
-            <div className="grid grid-cols-1 gap-3">
-              {/* Price */}
-              <div>
-                <Label htmlFor="edit-price" className="text-sm font-medium">
-                  মূল্য (৳ BDT)
-                </Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="mt-1"
-                  aria-invalid={!!formErrors.price}
-                />
-                {formErrors.price && (
-                  <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>
-                )}
-              </div>
+            {/* Price */}
+            <div>
+              <Label htmlFor="edit-price" className="text-xs font-medium sm:text-sm">
+                মূল্য (৳ BDT)
+              </Label>
+              <Input
+                id="edit-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
+                aria-invalid={!!formErrors.price}
+              />
+              {formErrors.price && <p className="mt-1 text-xs text-rose-500">{formErrors.price}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <Label htmlFor="edit-description" className="text-sm font-medium">
+              <Label htmlFor="edit-description" className="text-xs font-medium sm:text-sm">
                 বিস্তারিত বিবরণ (Description)
               </Label>
               <Textarea
@@ -755,20 +856,20 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1 min-h-[72px]"
+                className="mt-1 min-h-[72px] text-xs sm:text-sm"
               />
             </div>
 
             {/* Image URL with live preview */}
             <div>
-              <Label htmlFor="edit-image" className="text-sm font-medium">
+              <Label htmlFor="edit-image" className="text-xs font-medium sm:text-sm">
                 ছবির লিঙ্ক (Image URL)
               </Label>
               <Input
                 id="edit-image"
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-9 text-xs sm:h-10 sm:text-sm"
                 aria-invalid={!!formErrors.image}
               />
               {formErrors.image && <p className="mt-1 text-xs text-rose-500">{formErrors.image}</p>}
@@ -776,7 +877,7 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               {/* Live Preview */}
               {sanitizeImageUrl(formData.image) && (
                 <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700">
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white sm:size-16 dark:border-slate-700">
                     <Image
                       src={sanitizeImageUrl(formData.image)!}
                       alt="ছবি প্রিভিউ"
@@ -800,14 +901,16 @@ export default function ProductManagement({ initialProducts }: ProductManagement
               )}
             </div>
 
-            <DialogFooter className="border-t border-slate-100 pt-4 dark:border-slate-800">
-              <DialogClose render={<Button variant="outline" type="button" />}>
+            <DialogFooter className="flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end sm:pt-4 dark:border-slate-800">
+              <DialogClose
+                render={<Button variant="outline" type="button" className="w-full sm:w-auto" />}
+              >
                 বাতিল করুন
               </DialogClose>
               <Button
                 type="submit"
                 disabled={isPending}
-                className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
+                className="w-full justify-center gap-1.5 bg-green-600 text-white hover:bg-green-700 sm:w-auto"
               >
                 {isPending && <RiLoader4Line className="size-4 animate-spin" />}
                 আপডেট সংরক্ষণ করুন
@@ -821,13 +924,15 @@ export default function ProductManagement({ initialProducts }: ProductManagement
       {/* DELETE CONFIRMATION DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:max-w-md sm:p-6">
           <DialogHeader>
             <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
               <RiDeleteBinLine className="size-6" />
             </div>
-            <DialogTitle className="text-center">পণ্য মুছে ফেলতে চান?</DialogTitle>
-            <DialogDescription className="text-center">
+            <DialogTitle className="text-center text-base sm:text-lg">
+              পণ্য মুছে ফেলতে চান?
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs sm:text-sm">
               আপনি কি নিশ্চিত যে{" "}
               <span className="font-semibold text-slate-900 dark:text-white">
                 &ldquo;{activeProduct?.name}&rdquo;
@@ -836,13 +941,17 @@ export default function ProductManagement({ initialProducts }: ProductManagement
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-2 pt-2 sm:justify-center">
-            <DialogClose render={<Button variant="outline" type="button" />}>বাতিল</DialogClose>
+          <DialogFooter className="flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-center">
+            <DialogClose
+              render={<Button variant="outline" type="button" className="w-full sm:w-auto" />}
+            >
+              বাতিল
+            </DialogClose>
             <Button
               variant="destructive"
               onClick={handleDeleteSubmit}
               disabled={isPending}
-              className="gap-1.5"
+              className="w-full justify-center gap-1.5 sm:w-auto"
             >
               {isPending && <RiLoader4Line className="size-4 animate-spin" />}
               হ্যাঁ, মুছে ফেলুন
@@ -855,10 +964,10 @@ export default function ProductManagement({ initialProducts }: ProductManagement
       {/* PREVIEW PRODUCT CARD DIALOG */}
       {/* ======================================================== */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-hidden overflow-y-auto p-0 sm:max-w-md">
           {activeProduct && (
             <div className="bg-card text-card-foreground">
-              <div className="relative h-64 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+              <div className="relative h-48 w-full overflow-hidden bg-slate-100 sm:h-64 dark:bg-slate-800">
                 {sanitizeImageUrl(activeProduct.image) ? (
                   <Image
                     src={sanitizeImageUrl(activeProduct.image)!}
@@ -877,30 +986,30 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 )}
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="mb-2 flex items-start justify-between gap-2">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
                     {activeProduct.name}
                   </h3>
                 </div>
                 {activeProduct.subtitle && (
-                  <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mb-3 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
                     {activeProduct.subtitle}
                   </p>
                 )}
 
                 {activeProduct.description && (
-                  <div className="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <div className="mb-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 sm:text-sm dark:bg-slate-900 dark:text-slate-300">
                     {activeProduct.description}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3 sm:pt-4 dark:border-slate-800">
                   <div>
-                    <span className="block text-xs tracking-wider text-slate-400 uppercase">
+                    <span className="block text-[11px] tracking-wider text-slate-400 uppercase sm:text-xs">
                       মূল্য
                     </span>
-                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    <span className="text-xl font-bold text-green-600 sm:text-2xl dark:text-green-400">
                       ৳{" "}
                       {activeProduct.price !== null && activeProduct.price !== undefined
                         ? activeProduct.price
@@ -913,8 +1022,12 @@ export default function ProductManagement({ initialProducts }: ProductManagement
                 </div>
               </div>
 
-              <div className="flex justify-end bg-slate-50 p-4 dark:bg-slate-900">
-                <DialogClose render={<Button variant="outline" size="sm" />}>বন্ধ করুন</DialogClose>
+              <div className="flex justify-end bg-slate-50 p-3 sm:p-4 dark:bg-slate-900">
+                <DialogClose
+                  render={<Button variant="outline" size="sm" className="w-full sm:w-auto" />}
+                >
+                  বন্ধ করুন
+                </DialogClose>
               </div>
             </div>
           )}
