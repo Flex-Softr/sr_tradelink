@@ -173,10 +173,10 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
           if (!open) setSelectedProduct(null);
         }}
       >
-        <DialogContent className="overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-hidden overflow-y-auto p-0 sm:max-w-md">
           {selectedProduct && (
             <div>
-              <div className="relative h-72 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+              <div className="relative h-52 w-full overflow-hidden bg-slate-100 sm:h-72 dark:bg-slate-800">
                 {sanitizeImageUrl(selectedProduct.image) ? (
                   <Image
                     src={sanitizeImageUrl(selectedProduct.image)!}
@@ -195,39 +195,41 @@ export default function ProductsGrid({ initialProducts }: ProductsGridProps) {
                 )}
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <DialogHeader>
                   <div className="flex items-start justify-between gap-2">
-                    <DialogTitle className="text-2xl font-bold text-slate-900 dark:text-white">
+                    <DialogTitle className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
                       {selectedProduct.name}
                     </DialogTitle>
                   </div>
                 </DialogHeader>
 
                 {selectedProduct.subtitle && (
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
                     {selectedProduct.subtitle}
                   </p>
                 )}
 
                 {selectedProduct.description && (
-                  <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 sm:mt-4 sm:text-sm dark:bg-slate-900 dark:text-slate-300">
                     {selectedProduct.description}
                   </div>
                 )}
 
-                <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:mt-6 sm:flex-row sm:items-center sm:justify-between sm:pt-4 dark:border-slate-800">
                   <div>
-                    <span className="block text-xs tracking-wider text-slate-500 uppercase">
+                    <span className="block text-[11px] tracking-wider text-slate-500 uppercase sm:text-xs">
                       মূল্য
                     </span>
-                    <span className="text-primary text-xl font-bold">
+                    <span className="text-primary text-lg font-bold sm:text-xl">
                       {selectedProduct.price !== null && selectedProduct.price !== undefined
                         ? `৳ ${selectedProduct.price}`
                         : "যোগাযোগ করুন"}
                     </span>
                   </div>
-                  <DialogClose render={<Button variant="outline" size="sm" />}>
+                  <DialogClose
+                    render={<Button variant="outline" size="sm" className="w-full sm:w-auto" />}
+                  >
                     বন্ধ করুন
                   </DialogClose>
                 </div>
