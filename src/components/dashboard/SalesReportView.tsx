@@ -3,8 +3,6 @@
 import { useEffect, useState, useTransition } from "react";
 
 import {
-  RiArrowLeftSLine,
-  RiArrowRightSLine,
   RiArrowRightUpLine,
   RiCalendarLine,
   RiCheckDoubleLine,
@@ -39,7 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Customer } from "@/lib/customers";
 import { type PeriodPreset, getPresetDates } from "@/lib/date-presets";
-import { exportSalesReportPDF, formatDateStr } from "@/lib/pdf-export";
+import { exportSalesReportPDF } from "@/lib/pdf-export";
 import type { Product } from "@/lib/products";
 import { exportCentralSalesReportToCSV, exportCentralSalesReportToExcel } from "@/lib/sheet-export";
 import type { CentralSalesReportResult, GetCentralSalesReportOptions } from "@/lib/transactions";
@@ -313,8 +311,6 @@ export default function SalesReportView({
   const transactions = reportData?.transactions || [];
   const dailyTrend = reportData?.dailyTrend || [];
   const productsSummary = reportData?.productsSummary || [];
-  const totalPages = reportData?.totalPages || 1;
-  const totalRecords = reportData?.total || 0;
 
   // Find max daily amount for chart scaling
   const maxDayAmount = Math.max(
@@ -874,194 +870,6 @@ export default function SalesReportView({
           </CardContent>
         </Card>
       )}
-
-      {/* Detailed Product Transactions Table */}
-      <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-              পণ্য বিক্রয় ও ক্রয় লেনদেন বিবরণী (Product Ledger Transactions)
-            </CardTitle>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              নির্বাচিত সময়সীমার মধ্যে নথিভুক্ত পণ্যভিত্তিক সকল লেনদেনের বিস্তারিত তালিকা
-            </p>
-          </div>
-          <Badge variant="outline" className="text-xs font-semibold">
-            সর্বমোট {totalRecords} টি রেকর্ড
-          </Badge>
-        </CardHeader>
-        <CardContent className="p-0">
-          {transactions.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 dark:text-slate-400">
-              <RiShoppingBag3Line className="mx-auto mb-2 size-8 text-slate-400" />
-              <p className="text-sm font-semibold">কোনো লেনদেন পাওয়া যায়নি</p>
-              <p className="text-xs text-slate-400">
-                ফিল্টার পরিবর্তন করুন বা নতুন পণ্য লেনদেন এন্ট্রি করুন।
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop View Table */}
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-                  <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold text-slate-600 uppercase dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
-                    <tr>
-                      <th className="px-4 py-3 text-center">ক্র.</th>
-                      <th className="px-4 py-3">তারিখ</th>
-                      <th className="px-4 py-3">পণ্যের নাম</th>
-                      <th className="px-4 py-3 text-right">ক্রয় ওজন</th>
-                      <th className="px-4 py-3 text-right">ক্রয় মূল্য</th>
-                      <th className="px-4 py-3 text-right">বিক্রয় ওজন</th>
-                      <th className="px-4 py-3 text-right">বিক্রয় মূল্য</th>
-                      <th className="px-4 py-3 text-right">বিক্রয় দর</th>
-                      <th className="px-4 py-3 text-right">মুনাফা (৳)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                    {transactions.map((tx, idx) => {
-                      const itemIndex = (currentPage - 1) * pageSize + idx + 1;
-                      const isProfit = tx.profit >= 0;
-
-                      return (
-                        <tr
-                          key={tx.id}
-                          className="transition hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
-                        >
-                          <td className="px-4 py-3 text-center font-mono text-slate-400">
-                            {itemIndex}
-                          </td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap text-slate-900 dark:text-white">
-                            {formatDateStr(tx.date)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-slate-900 dark:text-white">
-                              {tx.productName}
-                            </div>
-                            {tx.productSubtitle && (
-                              <div className="text-[10px] text-slate-500">{tx.productSubtitle}</div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
-                            {tx.kroyweight > 0 ? `${tx.kroyweight} kg` : "-"}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
-                            {tx.kroyprice > 0 ? `৳ ${formatMoney(tx.kroyprice)}` : "-"}
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400">
-                            {tx.dailysaleweight > 0 ? `${tx.dailysaleweight} kg` : "-"}
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400">
-                            {tx.dailysaleprice > 0 ? `৳ ${formatMoney(tx.dailysaleprice)}` : "-"}
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
-                            {tx.sellRate > 0 ? `৳ ${formatMoney(tx.sellRate)}/kg` : "-"}
-                          </td>
-                          <td
-                            className={`px-4 py-3 text-right font-bold ${
-                              tx.dailysaleweight > 0
-                                ? isProfit
-                                  ? "text-emerald-700 dark:text-emerald-400"
-                                  : "text-rose-700 dark:text-rose-400"
-                                : "text-slate-400"
-                            }`}
-                          >
-                            {tx.dailysaleweight > 0 ? `৳ ${formatMoney(tx.profit)}` : "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile View Cards */}
-              <div className="divide-y divide-slate-100 p-3 md:hidden dark:divide-slate-800">
-                {transactions.map((tx, idx) => {
-                  const itemIndex = (currentPage - 1) * pageSize + idx + 1;
-                  const isProfit = tx.profit >= 0;
-
-                  return (
-                    <div key={tx.id} className="py-3 first:pt-1 last:pb-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-slate-400">#{itemIndex}</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            {tx.productName}
-                          </span>
-                        </div>
-                        <span className="text-xs text-slate-500">{formatDateStr(tx.date)}</span>
-                      </div>
-
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg bg-emerald-50/60 p-2 dark:bg-emerald-950/30">
-                          <span className="text-[10px] text-emerald-800 dark:text-emerald-300">
-                            বিক্রয় তথ্য
-                          </span>
-                          <div className="font-bold text-emerald-700 dark:text-emerald-400">
-                            ৳ {formatMoney(tx.dailysaleprice)}
-                          </div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                            {tx.dailysaleweight} kg @ ৳{tx.sellRate}/kg
-                          </div>
-                        </div>
-
-                        <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-900/60">
-                          <span className="text-[10px] text-slate-500">ক্রয় তথ্য / মুনাফা</span>
-                          <div className="font-bold text-slate-800 dark:text-slate-200">
-                            {tx.kroyweight > 0 ? `${tx.kroyweight} kg` : "ক্রয়: -"}
-                          </div>
-                          <div
-                            className={`text-[11px] font-bold ${
-                              isProfit
-                                ? "text-emerald-700 dark:text-emerald-400"
-                                : "text-rose-700 dark:text-rose-400"
-                            }`}
-                          >
-                            লাভ: ৳ {formatMoney(tx.profit)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination Bar */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-slate-800">
-                  <div className="text-xs text-slate-500">
-                    পৃষ্ঠা{" "}
-                    <span className="font-bold text-slate-900 dark:text-white">{currentPage}</span>{" "}
-                    / {totalPages} (মোট {totalRecords} টি রেকর্ড)
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadReportData(currentPage - 1)}
-                      disabled={currentPage <= 1 || isLoading}
-                      className="h-8 gap-1 text-xs"
-                    >
-                      <RiArrowLeftSLine className="size-4" />
-                      পূর্ববর্তী
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadReportData(currentPage + 1)}
-                      disabled={currentPage >= totalPages || isLoading}
-                      className="h-8 gap-1 text-xs"
-                    >
-                      পরবর্তী
-                      <RiArrowRightSLine className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Export Selection Dialog Modal */}
       <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
