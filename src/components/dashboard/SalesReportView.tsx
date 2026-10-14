@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 
 import {
-  RiArrowDownLine,
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
   RiArrowRightUpLine,
   RiCalendarLine,
   RiCheckDoubleLine,
@@ -19,7 +20,9 @@ import {
   RiMoneyDollarCircleLine,
   RiPrinterLine,
   RiRefreshLine,
-  RiWallet3Line,
+  RiScales3Line,
+  RiSearchLine,
+  RiShoppingBag3Line,
 } from "@remixicon/react";
 
 import { fetchCentralSalesReportAction } from "@/actions/transactions";
@@ -36,11 +39,13 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Customer } from "@/lib/customers";
 import { type PeriodPreset, getPresetDates } from "@/lib/date-presets";
-import { exportSalesReportPDF } from "@/lib/pdf-export";
+import { exportSalesReportPDF, formatDateStr } from "@/lib/pdf-export";
+import type { Product } from "@/lib/products";
 import { exportCentralSalesReportToCSV, exportCentralSalesReportToExcel } from "@/lib/sheet-export";
 import type { CentralSalesReportResult, GetCentralSalesReportOptions } from "@/lib/transactions";
 
 interface SalesReportViewProps {
+  initialProducts?: Product[];
   initialCustomers?: Customer[];
   initialData?: CentralSalesReportResult;
   initialStartDate?: string;
@@ -56,18 +61,20 @@ function formatMoney(amount: number | null | undefined): string {
 }
 
 export default function SalesReportView({
-  initialCustomers = [],
+  initialProducts = [],
   initialData,
   initialStartDate,
   initialEndDate,
   initialPreset = "month",
 }: SalesReportViewProps) {
+  const [productsList, setProductsList] = useState<Product[]>(initialProducts);
+
   // Filter States: Default to initialPreset ("month")
   const defaultDates = getPresetDates(initialPreset);
   const [preset, setPreset] = useState<PeriodPreset>(initialPreset);
   const [startDate, setStartDate] = useState<string>(initialStartDate ?? defaultDates.start);
   const [endDate, setEndDate] = useState<string>(initialEndDate ?? defaultDates.end);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | "all">("all");
+  const [selectedProductId, setSelectedProductId] = useState<string | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
@@ -83,6 +90,27 @@ export default function SalesReportView({
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+
+  // Fetch products if not passed initially
+  useEffect(() => {
+    if (initialProducts.length === 0) {
+      let active = true;
+      void (async () => {
+        try {
+          const res = await fetch("/api/products", { cache: "no-store" });
+          const json = await res.json();
+          if (active && json.success && Array.isArray(json.data)) {
+            setProductsList(json.data);
+          }
+        } catch (err) {
+          console.error("Failed to load products list:", err);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }
+  }, [initialProducts]);
 
   // Auto-dismiss feedback after 4 seconds
   useEffect(() => {
@@ -130,8 +158,7 @@ export default function SalesReportView({
           startDate:
             overrides?.startDate !== undefined ? overrides.startDate : startDate || undefined,
           endDate: overrides?.endDate !== undefined ? overrides.endDate : endDate || undefined,
-          customerId:
-            overrides?.customerId !== undefined ? overrides.customerId : selectedCustomerId,
+          productId: overrides?.productId !== undefined ? overrides.productId : selectedProductId,
           search:
             overrides?.search !== undefined ? overrides.search : searchQuery.trim() || undefined,
           page,
@@ -145,7 +172,7 @@ export default function SalesReportView({
         console.error("Failed to load central sales report:", err);
         setFeedback({
           type: "error",
-          message: "বিক্রয় রিপোর্ট লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।",
+          message: "পণ্য বিক্রয় রিপোর্ট লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।",
         });
       } finally {
         setIsLoading(false);
@@ -164,9 +191,9 @@ export default function SalesReportView({
     });
   };
 
-  const handleCustomerChange = (newCustomerId: string) => {
-    setSelectedCustomerId(newCustomerId);
-    loadReportData(1, { customerId: newCustomerId });
+  const handleProductChange = (newProductId: string) => {
+    setSelectedProductId(newProductId);
+    loadReportData(1, { productId: newProductId });
   };
 
   const handleResetFilters = () => {
@@ -174,12 +201,12 @@ export default function SalesReportView({
     setPreset("month");
     setStartDate(defaultDates.start);
     setEndDate(defaultDates.end);
-    setSelectedCustomerId("all");
+    setSelectedProductId("all");
     setSearchQuery("");
     loadReportData(1, {
       startDate: defaultDates.start,
       endDate: defaultDates.end,
-      customerId: "all",
+      productId: "all",
       search: undefined,
     });
   };
@@ -215,7 +242,7 @@ export default function SalesReportView({
         message:
           mode === "print"
             ? "প্রিন্ট প্রিভিউ প্রস্তুত হয়েছে!"
-            : "বিক্রয় রিপোর্ট PDF সফলভাবে ডাউনলোড হয়েছে!",
+            : "পণ্য বিক্রয় রিপোর্ট PDF সফলভাবে ডাউনলোড হয়েছে!",
       });
     } catch (err) {
       console.error("PDF Export error:", err);
@@ -267,12 +294,17 @@ export default function SalesReportView({
 
   const metrics = reportData?.metrics || {
     totalSales: 0,
+    totalSaleWeight: 0,
+    totalPurchaseCost: 0,
+    totalPurchaseWeight: 0,
     totalCollected: 0,
     totalDue: 0,
     netTurnover: 0,
     collectionRate: 0,
     totalTransactions: 0,
     avgSaleAmount: 0,
+    avgSellRate: 0,
+    avgBuyRate: 0,
     simpleProfit: 0,
     otherCosts: 0,
     netProfit: 0,
@@ -280,10 +312,13 @@ export default function SalesReportView({
 
   const transactions = reportData?.transactions || [];
   const dailyTrend = reportData?.dailyTrend || [];
+  const productsSummary = reportData?.productsSummary || [];
+  const totalPages = reportData?.totalPages || 1;
+  const totalRecords = reportData?.total || 0;
 
   // Find max daily amount for chart scaling
   const maxDayAmount = Math.max(
-    ...dailyTrend.map((d) => Math.max(d.sales, d.collected, d.due)),
+    ...dailyTrend.map((d) => Math.max(d.sales, d.purchases || 0)),
     1000
   );
 
@@ -320,21 +355,22 @@ export default function SalesReportView({
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-md bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-900/60 dark:text-emerald-300">
-              <RiExchangeDollarLine className="mr-1 size-3.5" />
-              কেন্দ্রীয় বিক্রয় মডিউল
+              <RiShoppingBag3Line className="mr-1 size-3.5" />
+              পণ্য বিক্রয় মডিউল
             </span>
             <Badge
               variant="outline"
               className="text-xs font-semibold text-slate-600 dark:text-slate-400"
             >
-              SR Tradelink Central Ledger
+              SR Tradelink Product Ledger
             </Badge>
           </div>
           <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-            কেন্দ্রীয় বিক্রয় ও আর্থিক বিবরণী রিপোর্ট
+            পণ্য বিক্রয় ও আর্থিক বিবরণী রিপোর্ট
           </h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            প্রতিষ্ঠানটির সামগ্রিক বিক্রয়, নগদ আদায়, চলতি বকেয়া ও সময়ভিত্তিক ক্যাশফ্লো হিসাব
+            পণ্য মডিউলের লেনদেন ভিত্তিক মোট বিক্রয়, বিক্রয় ওজন, ক্রয় ব্যয়, মুনাফা ও ক্যাশফ্লো
+            হিসাব
           </p>
         </div>
 
@@ -374,7 +410,7 @@ export default function SalesReportView({
         </div>
       </div>
 
-      {/* Date Filter & Presets Bar */}
+      {/* Date & Product Filter Bar */}
       <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-4">
@@ -445,20 +481,39 @@ export default function SalesReportView({
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                  নির্দিষ্ট গ্রাহক
+                  নির্দিষ্ট পণ্য
                 </label>
                 <select
-                  value={selectedCustomerId}
-                  onChange={(e) => handleCustomerChange(e.target.value)}
+                  value={selectedProductId}
+                  onChange={(e) => handleProductChange(e.target.value)}
                   className="h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  <option value="all">সকল গ্রাহক (All Customers)</option>
-                  {initialCustomers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.phone ? `(${c.phone})` : ""}
+                  <option value="all">সকল পণ্য (All Products)</option>
+                  {productsList.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.subtitle ? `(${p.subtitle})` : ""}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  পণ্য সার্চ
+                </label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="পণ্যের নাম খুঁজুন..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") loadReportData(1);
+                    }}
+                    className="h-9 pr-8 text-xs"
+                  />
+                  <RiSearchLine className="absolute top-2.5 right-2.5 size-4 text-slate-400" />
+                </div>
               </div>
 
               <div className="flex items-end gap-2">
@@ -491,7 +546,7 @@ export default function SalesReportView({
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                মোট বিক্রয় (Gross Sales)
+                মোট বিক্রয় মূল্য (Gross Sales)
               </span>
               <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
                 <RiMoneyDollarCircleLine className="size-5" />
@@ -503,7 +558,7 @@ export default function SalesReportView({
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>মোট লেনদেন:</span>
+              <span>মোট লেনদেন সংখ্যা:</span>
               <span className="font-bold text-emerald-700 dark:text-emerald-400">
                 {metrics.totalTransactions} টি
               </span>
@@ -511,73 +566,52 @@ export default function SalesReportView({
           </CardContent>
         </Card>
 
-        {/* Total Collected */}
-        <Card className="border-border/60 bg-linear-to-br from-green-50/50 to-white shadow-xs dark:from-green-950/20 dark:to-slate-900">
+        {/* Total Sale Weight */}
+        <Card className="border-border/60 bg-linear-to-br from-blue-50/50 to-white shadow-xs dark:from-blue-950/20 dark:to-slate-900">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                নগদ আদায় (Cash Collection)
+                মোট বিক্রয় ওজন (Sales Volume)
               </span>
-              <div className="flex size-9 items-center justify-center rounded-lg bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300">
-                <RiWallet3Line className="size-5" />
+              <div className="flex size-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                <RiScales3Line className="size-5" />
               </div>
             </div>
             <div className="mt-2">
-              <h3 className="text-2xl font-black tracking-tight text-green-700 sm:text-3xl dark:text-green-400">
-                ৳ {formatMoney(metrics.totalCollected)}
+              <h3 className="text-2xl font-black tracking-tight text-blue-700 sm:text-3xl dark:text-blue-400">
+                {formatMoney(metrics.totalSaleWeight)} kg
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>আদায় অনুপাত:</span>
-              <span className="font-bold text-green-700 dark:text-green-400">
-                {metrics.collectionRate}%
+              <span>গড় বিক্রয় দর:</span>
+              <span className="font-bold text-blue-700 dark:text-blue-400">
+                ৳ {formatMoney(metrics.avgSellRate)} / kg
               </span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Total Due */}
-        <Card
-          className={`border-border/60 shadow-xs transition-all ${
-            metrics.totalDue > 0
-              ? "bg-linear-to-br from-rose-50/60 to-white dark:from-rose-950/20 dark:to-slate-900"
-              : "bg-white dark:bg-slate-900"
-          }`}
-        >
+        {/* Total Purchase Cost */}
+        <Card className="border-border/60 bg-linear-to-br from-indigo-50/50 to-white shadow-xs dark:from-indigo-950/20 dark:to-slate-900">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                চলতি বকেয়া (Receivables)
+                মোট ক্রয় ব্যয় (Purchase Cost)
               </span>
-              <div
-                className={`flex size-9 items-center justify-center rounded-lg ${
-                  metrics.totalDue > 0
-                    ? "bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300"
-                    : "bg-slate-100 text-slate-600 dark:bg-slate-800"
-                }`}
-              >
-                <RiArrowDownLine className="size-5" />
+              <div className="flex size-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                <RiShoppingBag3Line className="size-5" />
               </div>
             </div>
             <div className="mt-2">
-              <h3
-                className={`text-2xl font-black tracking-tight sm:text-3xl ${
-                  metrics.totalDue > 0
-                    ? "text-rose-700 dark:text-rose-400"
-                    : "text-slate-800 dark:text-slate-200"
-                }`}
-              >
-                ৳ {formatMoney(metrics.totalDue)}
+              <h3 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+                ৳ {formatMoney(metrics.totalPurchaseCost)}
               </h3>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>গড় চালান মূল্য:</span>
-              <span
-                className={`font-bold ${
-                  metrics.totalDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-600"
-                }`}
-              >
-                ৳ {formatMoney(metrics.avgSaleAmount)}
+              <span>ক্রয় ওজন:</span>
+              <span className="font-bold text-slate-700 dark:text-slate-300">
+                {formatMoney(metrics.totalPurchaseWeight)} kg (দর: ৳{" "}
+                {formatMoney(metrics.avgBuyRate)}/kg)
               </span>
             </div>
           </CardContent>
@@ -602,7 +636,7 @@ export default function SalesReportView({
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <span>হিসাব ভিত্তি:</span>
               <span className="font-semibold text-amber-800 dark:text-amber-300">
-                পণ্য বিক্রয় ও ক্রয়মূল্য লাভ
+                বিক্রিত পণ্যের দর ও ক্রয়মূল্য পার্থক্য
               </span>
             </div>
           </CardContent>
@@ -683,30 +717,26 @@ export default function SalesReportView({
         </Card>
       </div>
 
-      {/* Visual Daily Sales & Collection Trend */}
+      {/* Visual Daily Sales & Purchase Trend */}
       {dailyTrend.length > 0 && (
         <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
             <div>
               <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-                দৈনিক বিক্রয় ও নগদ আদায় ট্রেন্ড (Daily Cashflow Trend)
+                দৈনিক পণ্য বিক্রয় ও ক্রয় ট্রেন্ড (Daily Sales & Purchase Trend)
               </CardTitle>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                নির্বাচিত সময়কালে দিনভিত্তিক মোট বিক্রয় ও নগদ আদায় চিত্র
+                নির্বাচিত সময়কালে দিনভিত্তিক মোট পণ্য বিক্রয় ও ক্রয়ের তুলনামূলক চিত্র
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="size-3 rounded-xs bg-emerald-600"></span>
-                <span className="text-slate-600 dark:text-slate-400">বিক্রয় (Sales)</span>
+                <span className="text-slate-600 dark:text-slate-400">বিক্রয় (Sales ৳)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded-xs bg-blue-600"></span>
-                <span className="text-slate-600 dark:text-slate-400">আদায় (Paid)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded-xs bg-rose-500"></span>
-                <span className="text-slate-600 dark:text-slate-400">বকেয়া (Due)</span>
+                <span className="size-3 rounded-xs bg-indigo-600"></span>
+                <span className="text-slate-600 dark:text-slate-400">ক্রয় (Purchase ৳)</span>
               </div>
             </div>
           </CardHeader>
@@ -714,14 +744,16 @@ export default function SalesReportView({
             <div className="grid auto-cols-max grid-flow-col items-end gap-3 overflow-x-auto pb-2">
               {dailyTrend.map((day) => {
                 const salesHeight = Math.max(8, Math.round((day.sales / maxDayAmount) * 110));
-                const paidHeight = Math.max(8, Math.round((day.collected / maxDayAmount) * 110));
-                const dueHeight = Math.max(4, Math.round((day.due / maxDayAmount) * 110));
+                const buyHeight = Math.max(
+                  4,
+                  Math.round(((day.purchases || 0) / maxDayAmount) * 110)
+                );
 
                 return (
                   <div
                     key={day.date}
                     className="flex w-16 flex-col items-center gap-1.5 text-center transition-all hover:opacity-90"
-                    title={`${day.date}\nবিক্রয়: ৳ ${day.sales}\nআদায়: ৳ ${day.collected}\nবকেয়া: ৳ ${day.due}`}
+                    title={`${day.date}\nবিক্রয়: ৳ ${day.sales} (${day.saleWeight || 0} kg)\nক্রয়: ৳ ${day.purchases || 0} (${day.purchaseWeight || 0} kg)`}
                   >
                     <div className="flex h-32 items-end justify-center gap-1">
                       {/* Sales Bar */}
@@ -729,16 +761,11 @@ export default function SalesReportView({
                         style={{ height: `${salesHeight}px` }}
                         className="w-3 rounded-t-sm bg-emerald-600 transition-all hover:bg-emerald-700"
                       />
-                      {/* Collected Bar */}
-                      <div
-                        style={{ height: `${paidHeight}px` }}
-                        className="w-3 rounded-t-sm bg-blue-600 transition-all hover:bg-blue-700"
-                      />
-                      {/* Due Bar */}
-                      {day.due > 0 && (
+                      {/* Buy Bar */}
+                      {(day.purchases || 0) > 0 && (
                         <div
-                          style={{ height: `${dueHeight}px` }}
-                          className="w-2 rounded-t-sm bg-rose-500 transition-all hover:bg-rose-600"
+                          style={{ height: `${buyHeight}px` }}
+                          className="w-3 rounded-t-sm bg-indigo-600 transition-all hover:bg-indigo-700"
                         />
                       )}
                     </div>
@@ -756,75 +783,283 @@ export default function SalesReportView({
         </Card>
       )}
 
-      {/* Analytics Panel: Breakdown by Transaction Type & Customer Category */}
+      {/* Product Performance Breakdown */}
+      {productsSummary.length > 0 && (
+        <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
+          <CardHeader className="border-b border-slate-100 pb-3 dark:border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
+                  পণ্যভিত্তিক বিক্রয় ও লাভ-ক্ষতি বিশ্লেষণ (Product Performance Summary)
+                </CardTitle>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  নির্বাচিত সময়কালের মধ্যে প্রতিটি পণ্যের বিক্রয় ওজন, বিক্রয় মূল্য ও লভ্যাংশ
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {productsSummary.length} টি পণ্য
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {productsSummary.map((ps) => {
+                const isProfitable = ps.profit >= 0;
+                return (
+                  <div
+                    key={ps.productId}
+                    className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50/50 p-3.5 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-900"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {ps.productName}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] ${
+                            isProfitable
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          }`}
+                        >
+                          {isProfitable ? "লাভ" : "ক্ষতি"}
+                        </Badge>
+                      </div>
+                      {ps.subtitle && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {ps.subtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-1.5 border-t border-slate-200/60 pt-2 text-xs dark:border-slate-800">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">বিক্রয় ওজন:</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {ps.saleWeight} kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">মোট বিক্রয়:</span>
+                        <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                          ৳ {formatMoney(ps.salePrice)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">গড় ক্রয় দর:</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          ৳ {formatMoney(ps.buyRate)}/kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200/40 pt-1 dark:border-slate-800/60">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          মুনাফা:
+                        </span>
+                        <span
+                          className={`font-black ${
+                            isProfitable
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : "text-rose-700 dark:text-rose-400"
+                          }`}
+                        >
+                          ৳ {formatMoney(ps.profit)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detailed Product Transactions Table */}
       <Card className="border-slate-200/80 shadow-xs dark:border-slate-800">
-        <CardHeader className="border-b border-slate-100 pb-3 dark:border-slate-800/80">
-          <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
-            লেনদেন ও গ্রাহক ধরণ বিশ্লেষণ (Breakdown by Category)
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              পণ্য বিক্রয় ও ক্রয় লেনদেন বিবরণী (Product Ledger Transactions)
+            </CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              নির্বাচিত সময়সীমার মধ্যে নথিভুক্ত পণ্যভিত্তিক সকল লেনদেনের বিস্তারিত তালিকা
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs font-semibold">
+            সর্বমোট {totalRecords} টি রেকর্ড
+          </Badge>
         </CardHeader>
-        <CardContent className="space-y-4 pt-4">
-          {/* Transaction Types */}
-          <div>
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-600 dark:text-slate-400">
-                বিক্রয় চালান (Sales)
-              </span>
-              <span className="font-bold text-slate-900 dark:text-white">
-                ৳ {formatMoney(metrics.totalSales)}
-              </span>
+        <CardContent className="p-0">
+          {transactions.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 dark:text-slate-400">
+              <RiShoppingBag3Line className="mx-auto mb-2 size-8 text-slate-400" />
+              <p className="text-sm font-semibold">কোনো লেনদেন পাওয়া যায়নি</p>
+              <p className="text-xs text-slate-400">
+                ফিল্টার পরিবর্তন করুন বা নতুন পণ্য লেনদেন এন্ট্রি করুন।
+              </p>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div
-                className="h-full bg-emerald-600"
-                style={{
-                  width: `${metrics.totalSales > 0 ? 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* Desktop View Table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                  <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold text-slate-600 uppercase dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3 text-center">ক্র.</th>
+                      <th className="px-4 py-3">তারিখ</th>
+                      <th className="px-4 py-3">পণ্যের নাম</th>
+                      <th className="px-4 py-3 text-right">ক্রয় ওজন</th>
+                      <th className="px-4 py-3 text-right">ক্রয় মূল্য</th>
+                      <th className="px-4 py-3 text-right">বিক্রয় ওজন</th>
+                      <th className="px-4 py-3 text-right">বিক্রয় মূল্য</th>
+                      <th className="px-4 py-3 text-right">বিক্রয় দর</th>
+                      <th className="px-4 py-3 text-right">মুনাফা (৳)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {transactions.map((tx, idx) => {
+                      const itemIndex = (currentPage - 1) * pageSize + idx + 1;
+                      const isProfit = tx.profit >= 0;
 
-          <div>
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-600 dark:text-slate-400">
-                নগদ আদায় / কিস্তি জমা (Payments)
-              </span>
-              <span className="font-bold text-green-700 dark:text-green-400">
-                ৳ {formatMoney(metrics.totalCollected)}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div
-                className="h-full bg-blue-600"
-                style={{
-                  width: `${Math.min(100, metrics.collectionRate)}%`,
-                }}
-              />
-            </div>
-          </div>
+                      return (
+                        <tr
+                          key={tx.id}
+                          className="transition hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
+                        >
+                          <td className="px-4 py-3 text-center font-mono text-slate-400">
+                            {itemIndex}
+                          </td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap text-slate-900 dark:text-white">
+                            {formatDateStr(tx.date)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-900 dark:text-white">
+                              {tx.productName}
+                            </div>
+                            {tx.productSubtitle && (
+                              <div className="text-[10px] text-slate-500">{tx.productSubtitle}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                            {tx.kroyweight > 0 ? `${tx.kroyweight} kg` : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                            {tx.kroyprice > 0 ? `৳ ${formatMoney(tx.kroyprice)}` : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400">
+                            {tx.dailysaleweight > 0 ? `${tx.dailysaleweight} kg` : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400">
+                            {tx.dailysaleprice > 0 ? `৳ ${formatMoney(tx.dailysaleprice)}` : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                            {tx.sellRate > 0 ? `৳ ${formatMoney(tx.sellRate)}/kg` : "-"}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right font-bold ${
+                              tx.dailysaleweight > 0
+                                ? isProfit
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-rose-700 dark:text-rose-400"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {tx.dailysaleweight > 0 ? `৳ ${formatMoney(tx.profit)}` : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-          <div>
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-600 dark:text-slate-400">
-                বকেয়া সমন্বয় (Due Adjustment)
-              </span>
-              <span className="font-bold text-rose-700 dark:text-rose-400">
-                ৳ {formatMoney(metrics.totalDue)}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div
-                className="h-full bg-rose-500"
-                style={{
-                  width: `${
-                    metrics.totalSales > 0
-                      ? Math.min(100, (metrics.totalDue / metrics.totalSales) * 100)
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
+              {/* Mobile View Cards */}
+              <div className="divide-y divide-slate-100 p-3 md:hidden dark:divide-slate-800">
+                {transactions.map((tx, idx) => {
+                  const itemIndex = (currentPage - 1) * pageSize + idx + 1;
+                  const isProfit = tx.profit >= 0;
+
+                  return (
+                    <div key={tx.id} className="py-3 first:pt-1 last:pb-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-slate-400">#{itemIndex}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {tx.productName}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-500">{formatDateStr(tx.date)}</span>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-emerald-50/60 p-2 dark:bg-emerald-950/30">
+                          <span className="text-[10px] text-emerald-800 dark:text-emerald-300">
+                            বিক্রয় তথ্য
+                          </span>
+                          <div className="font-bold text-emerald-700 dark:text-emerald-400">
+                            ৳ {formatMoney(tx.dailysaleprice)}
+                          </div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                            {tx.dailysaleweight} kg @ ৳{tx.sellRate}/kg
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-900/60">
+                          <span className="text-[10px] text-slate-500">ক্রয় তথ্য / মুনাফা</span>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {tx.kroyweight > 0 ? `${tx.kroyweight} kg` : "ক্রয়: -"}
+                          </div>
+                          <div
+                            className={`text-[11px] font-bold ${
+                              isProfit
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-rose-700 dark:text-rose-400"
+                            }`}
+                          >
+                            লাভ: ৳ {formatMoney(tx.profit)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Bar */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+                  <div className="text-xs text-slate-500">
+                    পৃষ্ঠা{" "}
+                    <span className="font-bold text-slate-900 dark:text-white">{currentPage}</span>{" "}
+                    / {totalPages} (মোট {totalRecords} টি রেকর্ড)
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadReportData(currentPage - 1)}
+                      disabled={currentPage <= 1 || isLoading}
+                      className="h-8 gap-1 text-xs"
+                    >
+                      <RiArrowLeftSLine className="size-4" />
+                      পূর্ববর্তী
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadReportData(currentPage + 1)}
+                      disabled={currentPage >= totalPages || isLoading}
+                      className="h-8 gap-1 text-xs"
+                    >
+                      পরবর্তী
+                      <RiArrowRightSLine className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -833,7 +1068,7 @@ export default function SalesReportView({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
-              বিক্রয় রিপোর্ট এক্সপোর্ট করুন
+              পণ্য বিক্রয় রিপোর্ট এক্সপোর্ট করুন
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
               এসআর ট্রেডলিংক এর প্রাতিষ্ঠানিক হেডার ও সিল সম্বলিত রিপোর্ট ডাউনলোড করুন।

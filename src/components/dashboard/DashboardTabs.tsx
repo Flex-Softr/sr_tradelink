@@ -514,7 +514,7 @@ function DashboardTabsContent({
 
         {activeTab === "sales" && (
           <div className="animate-in fade-in duration-200">
-            <SalesReportView initialCustomers={initialCustomers} />
+            <SalesReportView initialProducts={initialProducts} />
           </div>
         )}
 
