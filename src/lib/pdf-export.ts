@@ -7,6 +7,7 @@ import { type OtherCost, getCategoryLabel } from "@/lib/other-costs";
 import type { Party, PartyStatementLedgerData } from "@/lib/parties";
 import type {
   CentralSalesReportMetrics,
+  ProductTransactionReportItem,
   Transaction,
   TransactionWithCustomer,
 } from "@/lib/transactions";
@@ -60,6 +61,16 @@ export function formatDateTimeStr(dateVal?: Date | string | null): string {
   } catch {
     return d.toISOString().split("T")[0];
   }
+}
+
+export function escapeHtml(str: unknown): string {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /**
@@ -1205,9 +1216,12 @@ export async function exportCustomerListPDF(options: {
 /**
  * Generate HTML template for Central Sales & Financial Report PDF
  */
+/**
+ * Generate HTML template for Central Sales & Financial Report PDF
+ */
 export function generateSalesReportHTML(options: {
   metrics: CentralSalesReportMetrics;
-  transactions: TransactionWithCustomer[];
+  transactions: ProductTransactionReportItem[] | TransactionWithCustomer[];
   startDate?: string;
   endDate?: string;
   filterScopeText?: string;
@@ -1226,14 +1240,72 @@ export function generateSalesReportHTML(options: {
     periodText = `প্রারম্ভ হতে ${endDate} পর্যন্ত`;
   }
 
-  // rowsHtml removed as the table was requested to be removed.
+  let rowsHtml = "";
+  if (transactions && transactions.length > 0) {
+    const tableRows = (transactions as ProductTransactionReportItem[])
+      .slice(0, 60)
+      .map((tx, idx) => {
+        const prodName = escapeHtml(tx.productName || (tx as any).customer?.name || "পণ্য");
+        const sWeight = tx.dailysaleweight ?? 0;
+        const sPrice = tx.dailysaleprice ?? tx.amount ?? 0;
+        const bWeight = tx.kroyweight ?? 0;
+        const bPrice = tx.kroyprice ?? 0;
+        const profit = tx.profit ?? 0;
+
+        return `
+          <tr>
+            <td style="text-align: center;">${idx + 1}</td>
+            <td>${formatDateStr(tx.date)}</td>
+            <td><strong>${prodName}</strong></td>
+            <td style="text-align: right;">${bWeight} kg</td>
+            <td style="text-align: right;">৳ ${formatMoney(bPrice)}</td>
+            <td style="text-align: right; color: #047857; font-weight: 700;">${sWeight} kg</td>
+            <td style="text-align: right; color: #047857; font-weight: 700;">৳ ${formatMoney(sPrice)}</td>
+            <td style="text-align: right; font-weight: 700; color: ${profit >= 0 ? "#047857" : "#b91c1c"};">৳ ${formatMoney(profit)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    rowsHtml = `
+      <div style="margin-top: 14px; margin-bottom: 14px;">
+        <table class="sales-table">
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">ক্র.</th>
+              <th style="width: 75px;">তারিখ</th>
+              <th>পণ্যের নাম</th>
+              <th style="width: 75px; text-align: right;">ক্রয় ওজন</th>
+              <th style="width: 80px; text-align: right;">ক্রয় মূল্য</th>
+              <th style="width: 75px; text-align: right;">বিক্রয় ওজন</th>
+              <th style="width: 85px; text-align: right;">বিক্রয় মূল্য</th>
+              <th style="width: 85px; text-align: right;">মুনাফা (৳)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" style="text-align: right;">সর্বমোট:</td>
+              <td style="text-align: right;">${metrics.totalPurchaseWeight || 0} kg</td>
+              <td style="text-align: right;">৳ ${formatMoney(metrics.totalPurchaseCost || 0)}</td>
+              <td style="text-align: right; color: #047857;">${metrics.totalSaleWeight || 0} kg</td>
+              <td style="text-align: right; color: #047857;">৳ ${formatMoney(metrics.totalSales || 0)}</td>
+              <td style="text-align: right; color: ${(metrics.simpleProfit || 0) >= 0 ? "#047857" : "#b91c1c"};">৳ ${formatMoney(metrics.simpleProfit || 0)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
 
   return `
 <!DOCTYPE html>
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>কেন্দ্রীয় বিক্রয় ও আয় বিবরণী | SR Tradelink</title>
+  <title>কেন্দ্রীয় পণ্য বিক্রয় ও আর্থিক বিবরণী | SR Tradelink</title>
   <style>
     @page {
       size: A4 portrait;
@@ -1331,6 +1403,10 @@ export function generateSalesReportHTML(options: {
       background: #ecfdf5;
       border-color: #a7f3d0;
     }
+    .metric-card.highlight-blue {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
     .metric-card.highlight-amber {
       background: #fffbeb;
       border-color: #fde68a;
@@ -1344,6 +1420,9 @@ export function generateSalesReportHTML(options: {
     .metric-card.highlight-green .metric-num {
       color: #047857;
     }
+    .metric-card.highlight-blue .metric-num {
+      color: #1d4ed8;
+    }
     .metric-card.highlight .metric-num {
       color: #b91c1c;
     }
@@ -1354,20 +1433,6 @@ export function generateSalesReportHTML(options: {
       font-size: 9px;
       color: #64748b;
       font-weight: 600;
-    }
-    .type-summary-bar {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 5px;
-      padding: 6px 12px;
-      margin-bottom: 14px;
-      display: flex;
-      justify-content: space-around;
-      font-size: 10px;
-      color: #334155;
-    }
-    .type-summary-bar strong {
-      color: #0f172a;
     }
     .sales-table {
       width: 100%;
@@ -1388,6 +1453,13 @@ export function generateSalesReportHTML(options: {
       font-size: 9.5px;
       text-align: left;
       letter-spacing: 0.2px;
+    }
+    .sales-table tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .sales-table tbody td {
+      padding: 6px 7px;
+      border-bottom: 1px solid #e2e8f0;
     }
     .sales-table tfoot {
       background: #f1f5f9;
@@ -1483,12 +1555,12 @@ export function generateSalesReportHTML(options: {
   <!-- Title Strip -->
   <div class="title-strip">
     <div>
-      <h2>কেন্দ্রীয় বিক্রয় ও আর্থিক বিবরণী রিপোর্ট</h2>
-      <div style="font-size: 9.5px; color: #047857; font-weight: 600;">CENTRAL SALES & REVENUE REPORT • ${filterScopeText || "সকল লেনদেন"}</div>
+      <h2>কেন্দ্রীয় পণ্য বিক্রয় ও আর্থিক বিবরণী রিপোর্ট</h2>
+      <div style="font-size: 9.5px; color: #047857; font-weight: 600;">PRODUCT SALES & REVENUE REPORT • ${escapeHtml(filterScopeText || "সকল লেনদেন")}</div>
     </div>
     <div style="text-align: right; font-size: 9.5px; color: #334155; line-height: 1.4;">
-      <div>সময়কাল: <strong style="color: #065f46;">${periodText}</strong></div>
-      <div>আইডি: <span style="font-family: monospace; color: #475569;">${reportId}</span></div>
+      <div>সময়কাল: <strong style="color: #065f46;">${escapeHtml(periodText)}</strong></div>
+      <div>আইডি: <span style="font-family: monospace; color: #475569;">${escapeHtml(reportId)}</span></div>
     </div>
   </div>
 
@@ -1497,20 +1569,22 @@ export function generateSalesReportHTML(options: {
     <div class="metric-card highlight-green">
       <div class="metric-lbl">মোট বিক্রয় (Gross Sales)</div>
       <div class="metric-num">৳ ${formatMoney(metrics.totalSales)}</div>
+      <div style="font-size: 8px; color: #059669; margin-top: 2px;">লেনদেন: ${metrics.totalTransactions} টি</div>
     </div>
-    <div class="metric-card highlight-green">
-      <div class="metric-lbl">নগদ আদায় (Cash Inflow)</div>
-      <div class="metric-num">৳ ${formatMoney(metrics.totalCollected)}</div>
-      <div style="font-size: 8px; color: #059669; margin-top: 2px;">আদায় হার: ${metrics.collectionRate}%</div>
+    <div class="metric-card highlight-blue">
+      <div class="metric-lbl">মোট বিক্রয় ওজন (Sales Weight)</div>
+      <div class="metric-num">${formatMoney(metrics.totalSaleWeight)} kg</div>
+      <div style="font-size: 8px; color: #1d4ed8; margin-top: 2px;">গড় দর: ৳ ${formatMoney(metrics.avgSellRate)}/kg</div>
     </div>
-    <div class="metric-card ${metrics.totalDue > 0 ? "highlight" : ""}">
-      <div class="metric-lbl">চলতি বকেয়া (Receivables)</div>
-      <div class="metric-num">৳ ${formatMoney(metrics.totalDue)}</div>
+    <div class="metric-card">
+      <div class="metric-lbl">মোট ক্রয় ব্যয় (Purchase Cost)</div>
+      <div class="metric-num">৳ ${formatMoney(metrics.totalPurchaseCost)}</div>
+      <div style="font-size: 8px; color: #64748b; margin-top: 2px;">ক্রয় ওজন: ${formatMoney(metrics.totalPurchaseWeight)} kg</div>
     </div>
     <div class="metric-card highlight-amber">
       <div class="metric-lbl">সরল মুনাফা (Simple Profit)</div>
       <div class="metric-num">৳ ${formatMoney(metrics.simpleProfit)}</div>
-      <div style="font-size: 8px; color: #b45309; margin-top: 2px;">পণ্য বিক্রয় লভ্যাংশ</div>
+      <div style="font-size: 8px; color: #b45309; margin-top: 2px;">পণ্য বিক্রয় ও ক্রয় লভ্যাংশ</div>
     </div>
     <div class="metric-card">
       <div class="metric-lbl">মোট অন্যান্য খরচ (Other Costs)</div>
@@ -1526,7 +1600,8 @@ export function generateSalesReportHTML(options: {
     </div>
   </div>
 
-
+  <!-- Detailed Transactions Table -->
+  ${rowsHtml}
 
   <!-- Official Signatures -->
   <div class="signatures-grid">
@@ -1558,7 +1633,7 @@ export function generateSalesReportHTML(options: {
 
   <!-- System Footer -->
   <div class="system-footer">
-    <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক কেন্দ্রীয় বিক্রয় রিপোর্ট v2.4 • আইডি: ${reportId}</div>
+    <div>মুদ্রণের সময়: ${printTimestamp} • সিস্টেম: এসআর ট্রেডলিংক পণ্য বিক্রয় রিপোর্ট • আইডি: ${reportId}</div>
     <div>পৃষ্ঠা ১ / ১</div>
   </div>
 
@@ -1573,7 +1648,7 @@ export function generateSalesReportHTML(options: {
  */
 export async function exportSalesReportPDF(options: {
   metrics: CentralSalesReportMetrics;
-  transactions: TransactionWithCustomer[];
+  transactions: ProductTransactionReportItem[] | TransactionWithCustomer[];
   startDate?: string;
   endDate?: string;
   filterScopeText?: string;
