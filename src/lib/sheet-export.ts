@@ -6,6 +6,7 @@ import type { Party, PartyTransaction, PartyTransactionSummary } from "@/lib/par
 import type {
   CentralSalesReportMetrics,
   CustomerTransactionSummary,
+  ProductTransactionReportItem,
   Transaction,
   TransactionWithCustomer,
 } from "@/lib/transactions";
@@ -43,6 +44,20 @@ function downloadCSV(csvContent: string, fileName: string) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Sanitize cell values against CSV/Excel Formula Injection (CWE-1236).
+ * Prepends a single quote if a text cell begins with =, +, -, @ or control chars.
+ */
+export function sanitizeSheetCell<T>(val: T): T {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (/^[=+\-@\t\r]/.test(trimmed) && isNaN(Number(trimmed))) {
+      return `'${val}` as unknown as T;
+    }
+  }
+  return val;
 }
 
 /**
@@ -232,7 +247,7 @@ export function exportCentralSalesReportToExcel({
   customFileName,
 }: {
   metrics: CentralSalesReportMetrics;
-  transactions: TransactionWithCustomer[];
+  transactions: ProductTransactionReportItem[] | TransactionWithCustomer[];
   startDate?: string;
   endDate?: string;
   customFileName?: string;
@@ -242,7 +257,7 @@ export function exportCentralSalesReportToExcel({
     startDate && endDate ? `${startDate} হতে ${endDate}` : "সকল লেনদেন (সম্পূর্ণ রেকর্ড)";
 
   const rows: (string | number)[][] = [
-    ["এসআর ট্রেডলিংক (SR Tradelink) - কেন্দ্রীয় বিক্রয় ও আর্থিক বিবরণী"],
+    ["এসআর ট্রেডলিংক (SR Tradelink) - কেন্দ্রীয় পণ্য বিক্রয় ও আর্থিক বিবরণী"],
     [`প্রতিবেদন তৈরির তারিখ: ${today}`, `সময়কাল: ${dateRangeStr}`],
     [],
     // Key Metrics Box
@@ -250,14 +265,14 @@ export function exportCentralSalesReportToExcel({
     [
       "মোট বিক্রয় (Gross Sales)",
       `৳ ${metrics.totalSales.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-      "মোট নগদ আদায় (Collected)",
-      `৳ ${metrics.totalCollected.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      "মোট বিক্রয় ওজন (Sales Weight)",
+      `${(metrics.totalSaleWeight || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })} kg`,
     ],
     [
-      "চলতি বকেয়া (Outstanding Due)",
-      `৳ ${metrics.totalDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-      "আদায় অনুপাত (Collection Rate)",
-      `${metrics.collectionRate}%`,
+      "মোট ক্রয় ব্যয় (Purchase Cost)",
+      `৳ ${(metrics.totalPurchaseCost || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      "মোট ক্রয় ওজন (Purchase Weight)",
+      `${(metrics.totalPurchaseWeight || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })} kg`,
     ],
     [
       "সরল মুনাফা (Simple Profit)",
@@ -276,25 +291,34 @@ export function exportCentralSalesReportToExcel({
     [
       "ক্রমিক নং",
       "তারিখ",
-      "গ্রাহকের নাম",
-      "মোবাইল নম্বর",
-      "মোট মূল্য (৳)",
-      "আদায় / জমা (৳)",
-      "বকেয়া (৳)",
-      "বিবরণ",
+      "পণ্যের নাম",
+      "ক্রয় ওজন (kg)",
+      "ক্রয় মূল্য (৳)",
+      "বিক্রয় ওজন (kg)",
+      "বিক্রয় মূল্য (৳)",
+      "বিক্রয় দর (৳/kg)",
+      "আনুমানিক মুনাফা (৳)",
     ],
   ];
 
-  transactions.forEach((tx, idx) => {
+  (transactions as ProductTransactionReportItem[]).forEach((tx, idx) => {
+    const sWeight = tx.dailysaleweight ?? 0;
+    const sPrice = tx.dailysaleprice ?? tx.amount ?? 0;
+    const bWeight = tx.kroyweight ?? 0;
+    const bPrice = tx.kroyprice ?? 0;
+    const sRate = tx.sellRate ?? (sWeight > 0 ? Number((sPrice / sWeight).toFixed(2)) : 0);
+    const profit = tx.profit ?? 0;
+
     rows.push([
       idx + 1,
       formatDate(tx.date),
-      tx.customer?.name || "-",
-      tx.customer?.phone || "-",
-      tx.amount ?? 0,
-      tx.paid_amount ?? 0,
-      tx.due_amount ?? 0,
-      tx.description || "-",
+      sanitizeSheetCell(tx.productName || tx.customer?.name || "-"),
+      bWeight,
+      bPrice,
+      sWeight,
+      sPrice,
+      sRate,
+      profit,
     ]);
   });
 
@@ -303,15 +327,13 @@ export function exportCentralSalesReportToExcel({
   rows.push([
     "সর্বমোট হিসাব:",
     "",
-    "",
-    "",
-    "",
-    "",
-    `মোট ${metrics.totalTransactions} টি`,
+    `মোট ${metrics.totalTransactions} টি লেনদেন`,
+    metrics.totalPurchaseWeight || 0,
+    metrics.totalPurchaseCost || 0,
+    metrics.totalSaleWeight || 0,
     metrics.totalSales,
-    metrics.totalCollected,
-    metrics.totalDue,
-    `অবশিষ্ট বকেয়া: ৳ ${metrics.totalDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    metrics.avgSellRate || 0,
+    metrics.simpleProfit || 0,
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
@@ -319,21 +341,19 @@ export function exportCentralSalesReportToExcel({
   worksheet["!cols"] = [
     { wch: 10 }, // ক্রমিক
     { wch: 14 }, // তারিখ
-    { wch: 18 }, // মেমো
-    { wch: 25 }, // গ্রাহকের নাম
-    { wch: 16 }, // মোবাইল
-    { wch: 22 }, // গ্রাহকের ধরণ
-    { wch: 22 }, // লেনদেনের ধরণ
-    { wch: 16 }, // মোট মূল্য
-    { wch: 16 }, // পরিশোধ
-    { wch: 16 }, // বকেয়া
-    { wch: 30 }, // বিবরণ
+    { wch: 25 }, // পণ্যের নাম
+    { wch: 16 }, // ক্রয় ওজন
+    { wch: 16 }, // ক্রয় মূল্য
+    { wch: 16 }, // বিক্রয় ওজন
+    { wch: 16 }, // বিক্রয় মূল্য
+    { wch: 16 }, // বিক্রয় দর
+    { wch: 18 }, // মুনাফা
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "বিক্রয় রিপোর্ট");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "পণ্য বিক্রয় রিপোর্ট");
 
-  const fileName = customFileName || `এসআর_ট্রেডলিংক_কেন্দ্রীয়_বিক্রয়_রিপোর্ট_${today}.xlsx`;
+  const fileName = customFileName || `এসআর_ট্রেডলিংক_পণ্য_বিক্রয়_রিপোর্ট_${today}.xlsx`;
   downloadWorkbook(workbook, fileName);
 }
 
@@ -348,32 +368,43 @@ export function exportCentralSalesReportToCSV({
   customFileName,
 }: {
   metrics: CentralSalesReportMetrics;
-  transactions: TransactionWithCustomer[];
+  transactions: ProductTransactionReportItem[] | TransactionWithCustomer[];
   startDate?: string;
   endDate?: string;
   customFileName?: string;
 }) {
-  const data = transactions.map((tx, idx) => ({
-    "ক্রমিক নং": String(idx + 1),
-    তারিখ: formatDate(tx.date),
-    "গ্রাহকের নাম": tx.customer?.name || "-",
-    "মোবাইল নম্বর": tx.customer?.phone || "-",
-    "মোট টাকা (৳)": tx.amount ?? 0,
-    "আদায় (৳)": tx.paid_amount ?? 0,
-    "বকেয়া (৳)": tx.due_amount ?? 0,
-    বিবরণ: tx.description || "-",
-  }));
+  const data = (transactions as ProductTransactionReportItem[]).map((tx, idx) => {
+    const sWeight = tx.dailysaleweight ?? 0;
+    const sPrice = tx.dailysaleprice ?? tx.amount ?? 0;
+    const bWeight = tx.kroyweight ?? 0;
+    const bPrice = tx.kroyprice ?? 0;
+    const sRate = tx.sellRate ?? (sWeight > 0 ? Number((sPrice / sWeight).toFixed(2)) : 0);
+    const profit = tx.profit ?? 0;
+
+    return {
+      "ক্রমিক নং": String(idx + 1),
+      তারিখ: formatDate(tx.date),
+      "পণ্যের নাম": sanitizeSheetCell(tx.productName || tx.customer?.name || "-"),
+      "ক্রয় ওজন (kg)": bWeight,
+      "ক্রয় মূল্য (৳)": bPrice,
+      "বিক্রয় ওজন (kg)": sWeight,
+      "বিক্রয় মূল্য (৳)": sPrice,
+      "বিক্রয় দর (৳/kg)": sRate,
+      "মুনাফা (৳)": profit,
+    };
+  });
 
   // Append summary row
   data.push({
     "ক্রমিক নং": "সর্বমোট",
     তারিখ: "-",
-    "গ্রাহকের নাম": "-",
-    "মোবাইল নম্বর": "-",
-    "মোট টাকা (৳)": metrics.totalSales,
-    "আদায় (৳)": metrics.totalCollected,
-    "বকেয়া (৳)": metrics.totalDue,
-    বিবরণ: `মোট বকেয়া: ৳ ${metrics.totalDue}`,
+    "পণ্যের নাম": "-",
+    "ক্রয় ওজন (kg)": metrics.totalPurchaseWeight || 0,
+    "ক্রয় মূল্য (৳)": metrics.totalPurchaseCost || 0,
+    "বিক্রয় ওজন (kg)": metrics.totalSaleWeight || 0,
+    "বিক্রয় মূল্য (৳)": metrics.totalSales,
+    "বিক্রয় দর (৳/kg)": metrics.avgSellRate || 0,
+    "মুনাফা (৳)": metrics.simpleProfit || 0,
   });
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -388,7 +419,7 @@ export function exportCentralSalesReportToCSV({
         : endDate
           ? `_পর্যন্ত_${endDate}`
           : `_${today}`;
-  const fileName = customFileName || `এসআর_ট্রেডলিংক_বিক্রয়_রিপোর্ট${dateSuffix}.csv`;
+  const fileName = customFileName || `এসআর_ট্রেডলিংক_পণ্য_বিক্রয়_রিপোর্ট${dateSuffix}.csv`;
   downloadCSV(csv, fileName);
 }
 
